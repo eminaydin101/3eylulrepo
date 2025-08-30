@@ -1,0 +1,13 @@
+/suec-yonetim-paneli
+├── public/
+│   └── index.html
+└── src/
+    ├── components/
+    │   ├── AdminPanel.js
+    │   ├── Dashboard.js
+    │   ├── ProcessTable.js
+    │   └── UserManagement.js
+    ├── utils/
+    │   └── localStorageManager.js
+    ├── App.js
+    └── index.js
