@@ -1,7 +1,8 @@
 import React from 'react';
 import UserManagement from './UserManagement';
 
-const AdminPanel = ({ firmalar, kategoriler, users, openUserModal, requestUserDelete }) => {
+// DÜZELTME: 'openNewUserModal' prop'u eklendi
+const AdminPanel = ({ users, firmalar, kategoriler, openUserModal, openNewUserModal, requestUserDelete }) => {
     const handleUpdateFirmsOrCategories = () => {
         alert("Bu özellik için backend'in güncellenmesi gerekmektedir.");
     };
@@ -12,16 +13,14 @@ const AdminPanel = ({ firmalar, kategoriler, users, openUserModal, requestUserDe
     const addButton = "bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:bg-slate-400";
 
     return (
-        <div className="p-4 bg-slate-100 dark:bg-slate-900 rounded-2xl">
-            <div className="mb-6">
-                <UserManagement 
-                    users={users} 
-                    openModal={openUserModal} 
-                    openNewModal={openNewUserModal} 
-                    requestDelete={requestUserDelete} 
-                />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="space-y-6">
+            <UserManagement 
+                users={users} 
+                openModal={openUserModal} 
+                openNewModal={openNewUserModal} // DÜZELTME: Prop doğru şekilde aktarılıyor
+                requestDelete={requestUserDelete} 
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className={sectionStyle}>
                     <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-4">Firma & Konum Yönetimi</h3>
                     <div className={inputGroupStyle}>

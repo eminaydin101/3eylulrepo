@@ -1,5 +1,6 @@
 import React from 'react';
 
+// DÜZELTME: 'openNewModal' prop'u eklendi
 const UserManagement = ({ users, openModal, openNewModal, requestDelete }) => {
     const thStyle = "p-3 text-left text-xs font-semibold text-white uppercase tracking-wider bg-slate-700 dark:bg-slate-800 border-r border-slate-600 dark:border-slate-700 last:border-r-0";
     const tdStyle = "p-3 border-b border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300";
@@ -8,7 +9,8 @@ const UserManagement = ({ users, openModal, openNewModal, requestDelete }) => {
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">Kullanıcı Yönetimi</h3>
-                <button onClick={() => openModal()} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 shadow-sm">
+                {/* DÜZELTME: Buton artık 'openNewModal' fonksiyonunu çağırıyor */}
+                <button onClick={openNewModal} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 shadow-sm">
                     + Yeni Kullanıcı Ekle
                 </button>
             </div>
