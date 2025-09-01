@@ -54,3 +54,13 @@ export const deleteProcess = (id) => apiClient.delete(`/processes/${id}`);
 export const createUser = (userData) => apiClient.post('/users', userData);
 export const updateUser = (id, userData) => apiClient.put(`/users/${id}`, userData);
 export const deleteUser = (id) => apiClient.delete(`/users/${id}`);
+
+// --- Dosya (File) Fonksiyonları ---
+export const uploadFiles = (processId, formData) => {
+    return apiClient.post(`/files/upload/${processId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
+export const getProcessFiles = (processId) => apiClient.get(`/files/${processId}`);
+export const downloadFile = (fileId) => apiClient.get(`/files/download/${fileId}`, { responseType: 'blob' });
+export const deleteFile = (fileId) => apiClient.delete(`/files/${fileId}`);

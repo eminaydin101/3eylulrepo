@@ -11,8 +11,12 @@ module.exports = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        // DÜZELTME: req.user'a doğru şekilde decoded verisini atıyoruz
-        req.user = { id: decoded.id, role: decoded.role };
+        // User bilgilerini req'e ekle - email bildirimleri için gerekli
+        req.user = { 
+            id: decoded.id, 
+            role: decoded.role,
+            name: decoded.name || 'Sistem' // Opsiyonel - JWT'ye name eklenebilir
+        };
         next();
     } catch (error) {
         console.error("Token verification error:", error);

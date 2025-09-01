@@ -72,6 +72,7 @@ const setupMainDbSchema = async (db) => {
         CREATE TABLE IF NOT EXISTS processes (id TEXT PRIMARY KEY, firma TEXT, konum TEXT, baslik TEXT, surec TEXT, mevcutDurum TEXT, baslangicTarihi TEXT, sonrakiKontrolTarihi TEXT, tamamlanmaTarihi TEXT, kategori TEXT, altKategori TEXT, oncelikDuzeyi TEXT, durum TEXT);
         CREATE TABLE IF NOT EXISTS process_assignments (processId TEXT, userId INTEGER, PRIMARY KEY (processId, userId), FOREIGN KEY (processId) REFERENCES processes(id) ON DELETE CASCADE, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
         CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER, userName TEXT, processId TEXT, field TEXT, oldValue TEXT, newValue TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS process_files (id INTEGER PRIMARY KEY AUTOINCREMENT, processId TEXT, originalName TEXT, filename TEXT, path TEXT, size INTEGER, mimetype TEXT, uploadedBy INTEGER, uploadedAt DATETIME, FOREIGN KEY (processId) REFERENCES processes(id) ON DELETE CASCADE, FOREIGN KEY (uploadedBy) REFERENCES users(id));
     `);
 
     const userCount = await db.get('SELECT COUNT(*) as count FROM users');

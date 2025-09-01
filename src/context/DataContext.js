@@ -28,8 +28,9 @@ export const DataProvider = ({ children }) => {
         try {
             const response = await api.getInitialData();
             setData(prev => ({ ...prev, ...response.data }));
-        } catch (error) {
-            console.error("Uygulama verileri alınırken hata oluştu:", error);
+        } catch (err) {
+            console.error("Uygulama verileri alınırken hata oluştu:", err);
+            // Toast yerine console.error kullanıyoruz
         } finally {
             setLoading(false);
         }
@@ -80,9 +81,9 @@ export const DataProvider = ({ children }) => {
         try {
             await api.createProcess(processData);
             await fetchData(); // Verileri yenile
-        } catch (error) {
-            console.error("Süreç ekleme hatası:", error);
-            throw error;
+        } catch (err) {
+            console.error("Süreç ekleme hatası:", err);
+            throw err;
         }
     }, [fetchData]);
 
@@ -90,9 +91,9 @@ export const DataProvider = ({ children }) => {
         try {
             await api.updateProcess(id, processData);
             await fetchData(); // Verileri yenile
-        } catch (error) {
-            console.error("Süreç güncelleme hatası:", error);
-            throw error;
+        } catch (err) {
+            console.error("Süreç güncelleme hatası:", err);
+            throw err;
         }
     }, [fetchData]);
 
@@ -100,9 +101,9 @@ export const DataProvider = ({ children }) => {
         try {
             await api.deleteProcess(id);
             await fetchData(); // Verileri yenile
-        } catch (error) {
-            console.error("Süreç silme hatası:", error);
-            throw error;
+        } catch (err) {
+            console.error("Süreç silme hatası:", err);
+            throw err;
         }
     }, [fetchData]);
 
@@ -111,9 +112,9 @@ export const DataProvider = ({ children }) => {
         try {
             await api.createUser(userData);
             await fetchData(); // Verileri yenile
-        } catch (error) {
-            console.error("Kullanıcı ekleme hatası:", error);
-            throw error;
+        } catch (err) {
+            console.error("Kullanıcı ekleme hatası:", err);
+            throw err;
         }
     }, [fetchData]);
 
@@ -121,9 +122,9 @@ export const DataProvider = ({ children }) => {
         try {
             await api.updateUser(id, userData);
             await fetchData(); // Verileri yenile
-        } catch (error) {
-            console.error("Kullanıcı güncelleme hatası:", error);
-            throw error;
+        } catch (err) {
+            console.error("Kullanıcı güncelleme hatası:", err);
+            throw err;
         }
     }, [fetchData]);
 
@@ -131,9 +132,9 @@ export const DataProvider = ({ children }) => {
         try {
             await api.deleteUser(id);
             await fetchData(); // Verileri yenile
-        } catch (error) {
-            console.error("Kullanıcı silme hatası:", error);
-            throw error;
+        } catch (err) {
+            console.error("Kullanıcı silme hatası:", err);
+            throw err;
         }
     }, [fetchData]);
 

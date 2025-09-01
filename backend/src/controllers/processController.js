@@ -1,4 +1,5 @@
 const { getDb } = require('../config/database');
+const { sendProcessNotification, sendBulkNotification } = require('../services/emailService');
 
 // Bu fonksiyon, veritabanına log kaydı ekler.
 const createLogEntry = async (db, logData) => {
@@ -10,6 +11,17 @@ const createLogEntry = async (db, logData) => {
             userId, userName, processId, field, String(oldValue), String(newValue)
         );
     }
+};
+
+// Sorumlu kullanıcıların emaillerini getir
+const getResponsibleEmails = async (db, processId) => {
+    const emails = await db.all(`
+        SELECT DISTINCT u.email 
+        FROM users u 
+        JOIN process_assignments pa ON u.id = pa.userId 
+        WHERE pa.processId = ? AND u.status = 'Active'
+    `, processId);
+    return emails.map(row => row.email);
 };
 
 // Benzersiz ID oluşturma fonksiyonu
@@ -74,31 +86,45 @@ exports.createProcess = async (req, res) => {
             processData.durum
         );
 
-        // Sorumluları ekle
+        // Sorumluları ekle ve email listesi oluştur
+        const responsibleEmails = [];
         if (sorumlular && sorumlular.length > 0) {
-            const allUsers = await db.all('SELECT id, fullName FROM users');
-            const userMap = new Map(allUsers.map(u => [u.fullName, u.id]));
+            const allUsers = await db.all('SELECT id, fullName, email FROM users');
+            const userMap = new Map(allUsers.map(u => [u.fullName, { id: u.id, email: u.email }]));
             
             for (const fullName of sorumlular) {
-                const userId = userMap.get(fullName);
-                if (userId) {
+                const user = userMap.get(fullName);
+                if (user) {
                     await db.run(
                         'INSERT INTO process_assignments (processId, userId) VALUES (?, ?)',
-                        newId, userId
+                        newId, user.id
                     );
+                    if (user.email) {
+                        responsibleEmails.push(user.email);
+                    }
                 }
             }
         }
 
         // Log kaydı oluştur
         await createLogEntry(db, {
-            userId: 1, // TODO: Gerçek kullanıcı ID'si JWT'den alınmalı
-            userName: "Sistem", 
+            userId: req.user?.id || 1,
+            userName: req.user?.name || "Sistem", 
             processId: newId,
             field: "Oluşturma", 
             oldValue: "", 
             newValue: "Yeni süreç oluşturuldu"
         });
+
+        // Email bildirimi gönder
+        if (responsibleEmails.length > 0) {
+            const processWithResponsibles = { ...processData, id: newId, sorumlular };
+            await sendBulkNotification(
+                responsibleEmails,
+                `Yeni Süreç Atandı: ${processData.baslik}`,
+                processWithResponsibles
+            );
+        }
 
         req.io.emit('data_changed');
         res.status(201).json({ message: 'Süreç başarıyla oluşturuldu.', id: newId });
@@ -111,9 +137,7 @@ exports.createProcess = async (req, res) => {
 exports.updateProcess = async (req, res) => {
     const { id } = req.params;
     const { sorumlular, ...processData } = req.body;
-    // Not: Gerçek bir uygulamada bu bilgi JWT'den çözülen token'dan gelir.
-    // Şimdilik test için manuel olarak ekliyoruz.
-    const currentUser = { userId: 1, userName: "Sistem" }; 
+    const currentUser = { userId: req.user?.id || 1, userName: req.user?.name || "Sistem" };
 
     try {
         const db = await getDb();
@@ -123,7 +147,10 @@ exports.updateProcess = async (req, res) => {
             return res.status(404).json({ message: "Süreç bulunamadı." });
         }
 
-        // Değişiklikleri logla
+        // Önemli değişiklikler için email bildirimi
+        const criticalFields = ['durum', 'oncelikDuzeyi', 'sonrakiKontrolTarihi'];
+        const criticalChanges = {};
+        
         for (const key in processData) {
             if (key in oldProcess && oldProcess[key] !== processData[key]) {
                 await createLogEntry(db, {
@@ -134,6 +161,10 @@ exports.updateProcess = async (req, res) => {
                     oldValue: oldProcess[key], 
                     newValue: processData[key]
                 });
+                
+                if (criticalFields.includes(key)) {
+                    criticalChanges[key] = { old: oldProcess[key], new: processData[key] };
+                }
             }
         }
 
@@ -148,16 +179,34 @@ exports.updateProcess = async (req, res) => {
 
         // Sorumluları güncelle
         await db.run('DELETE FROM process_assignments WHERE processId = ?', id);
+        const responsibleEmails = [];
         if (sorumlular && sorumlular.length > 0) {
-            const allUsers = await db.all('SELECT id, fullName FROM users');
-            const userMap = new Map(allUsers.map(u => [u.fullName, u.id]));
+            const allUsers = await db.all('SELECT id, fullName, email FROM users');
+            const userMap = new Map(allUsers.map(u => [u.fullName, { id: u.id, email: u.email }]));
             
             for (const fullName of sorumlular) {
-                const userId = userMap.get(fullName);
-                if (userId) {
-                    await db.run('INSERT INTO process_assignments (processId, userId) VALUES (?, ?)', id, userId);
+                const user = userMap.get(fullName);
+                if (user) {
+                    await db.run('INSERT INTO process_assignments (processId, userId) VALUES (?, ?)', id, user.id);
+                    if (user.email) {
+                        responsibleEmails.push(user.email);
+                    }
                 }
             }
+        }
+
+        // Kritik değişiklikler için email gönder
+        if (Object.keys(criticalChanges).length > 0 && responsibleEmails.length > 0) {
+            const updatedProcess = { ...processData, id, sorumlular };
+            let subject = `Süreç Güncellendi: ${processData.baslik}`;
+            
+            if (criticalChanges.durum) {
+                subject = `Süreç Durumu Değişti: ${processData.baslik}`;
+            } else if (criticalChanges.oncelikDuzeyi) {
+                subject = `Süreç Önceliği Değişti: ${processData.baslik}`;
+            }
+            
+            await sendBulkNotification(responsibleEmails, subject, updatedProcess);
         }
 
         req.io.emit('data_changed');
@@ -180,15 +229,27 @@ exports.deleteProcess = async (req, res) => {
             return res.status(404).json({ message: "Süreç bulunamadı." });
         }
 
+        // Sorumlu kullanıcıların emaillerini al
+        const responsibleEmails = await getResponsibleEmails(db, id);
+
         // Log kaydı oluştur
         await createLogEntry(db, {
-            userId: 1, // TODO: Gerçek kullanıcı ID'si JWT'den alınmalı
-            userName: "Sistem", 
+            userId: req.user?.id || 1,
+            userName: req.user?.name || "Sistem", 
             processId: id,
             field: "Silme", 
             oldValue: process.baslik, 
             newValue: "Süreç silindi"
         });
+
+        // Email bildirimi gönder
+        if (responsibleEmails.length > 0) {
+            await sendBulkNotification(
+                responsibleEmails,
+                `Süreç Silindi: ${process.baslik}`,
+                { ...process, sorumlular: responsibleEmails }
+            );
+        }
 
         // İlişkili verileri sil (CASCADE çalışacak ama güvenlik için manuel siliyoruz)
         await db.run('DELETE FROM process_assignments WHERE processId = ?', id);

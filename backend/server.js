@@ -3,11 +3,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const cors = require('cors');
+const path = require('path');
 const { connectDB, getDb, getMsgDb } = require('./src/config/database');
 
 const authRoutes = require('./src/routes/auth');
 const processRoutes = require('./src/routes/processes');
 const userRoutes = require('./src/routes/users');
+const fileRoutes = require('./src/routes/files');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,7 +17,11 @@ const io = new Server(server, { cors: { origin: "http://localhost:3000" } });
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Static files for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use((req, res, next) => {
     req.io = io;
@@ -25,6 +31,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/processes', processRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/files', fileRoutes);
 
 // --- YENİ VE GELİŞTİRİLMİŞ SOCKET MANTIĞI ---
 let onlineUsers = {}; // Online kullanıcıları { userId: { user, socketId } } formatında tutacağız
