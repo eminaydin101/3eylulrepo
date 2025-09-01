@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { LoadingOverlay } from '../components/LoadingSpinner';
+import { Profile, Settings } from '../components/ProfileSettings';
 
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
@@ -18,7 +19,7 @@ import KanbanBoard from '../components/KanbanBoard';
 
 const MainLayout = () => {
     const { user, logout } = useAuth();
-    const { processes, users, firmalar, kategoriler, logs, loading, addProcess, updateProcess, deleteProcess, addUser, editUser, removeUser } = useData();
+    const { processes, users, firmalar, kategoriler, logs, loading, unreadCounts, addProcess, updateProcess, deleteProcess, addUser, editUser, removeUser } = useData();
     const { success, error } = useToast();
 
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -379,6 +380,8 @@ const MainLayout = () => {
                 />
                 
                 <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+                    {activeTab === 'profile' && <Profile />}
+                    {activeTab === 'settings' && <Settings />}
                     {activeTab === 'dashboard' && (
                         <Dashboard 
                             processes={processes} 
@@ -551,12 +554,28 @@ const MainLayout = () => {
 
             {/* Floating Chat Button */}
             <button 
-                onClick={() => setChatOpen(o => !o)} 
-                title="Mesajlaşma" 
-                className="fixed bottom-6 right-6 bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 z-50 transition-colors"
-            >
-                💬
-            </button>
+    onClick={() => setChatOpen(o => !o)} 
+    data-chat-trigger="true"
+    title="Mesajlaşma" 
+    className={`fixed bottom-6 right-6 bg-blue-600 text-white w-20 h-20 rounded-full shadow-2xl flex items-center justify-center hover:bg-blue-700 z-50 transition-all duration-300 transform hover:scale-110 ${
+        Object.values(unreadCounts).some(count => count > 0) 
+            ? 'animate-pulse ring-4 ring-blue-300' 
+            : ''
+    }`}
+>
+    <div className="relative">
+        <span className="text-3xl">💬</span>
+        {/* Unread message badge */}
+        {Object.values(unreadCounts).reduce((total, count) => total + count, 0) > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-bounce">
+                {Object.values(unreadCounts).reduce((total, count) => total + count, 0) > 9 
+                    ? '9+' 
+                    : Object.values(unreadCounts).reduce((total, count) => total + count, 0)
+                }
+            </span>
+        )}
+    </div>
+</button>
 
             {/* Loading Overlay */}
             <LoadingOverlay isVisible={isExporting} text="Dışa aktarılıyor..." />

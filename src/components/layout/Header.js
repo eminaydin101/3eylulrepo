@@ -10,16 +10,12 @@ const Header = ({ onTabChange, activeTab, onToggleSidebar, onLogout, theme, hand
     });
     
     const profileMenuRef = useRef();
+    const isAdmin = user && (user.role === 'Admin' || user.role === 'SuperAdmin');
 
     // Sistem ayarlarını yükle
     useEffect(() => {
         const loadSystemSettings = async () => {
             try {
-                // API çağrısı yaparak sistem ayarlarını al
-                // const response = await api.getSystemSettings();
-                // setSystemSettings(response.data);
-                
-                // Şimdilik localStorage'dan al (demo için)
                 const storedSettings = localStorage.getItem('systemSettings');
                 if (storedSettings) {
                     setSystemSettings(JSON.parse(storedSettings));
@@ -68,8 +64,8 @@ const Header = ({ onTabChange, activeTab, onToggleSidebar, onLogout, theme, hand
                     </h1>
                 </div>
                 
-                {/* Navigation Tabs */}
-                <div className="hidden sm:flex items-center gap-2 ml-6">
+                {/* Navigation Tabs - Desktop */}
+                <div className="hidden md:flex items-center gap-2 ml-6">
                     <button 
                         onClick={() => onTabChange('dashboard')} 
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
@@ -92,6 +88,20 @@ const Header = ({ onTabChange, activeTab, onToggleSidebar, onLogout, theme, hand
                         <span>📋</span>
                         <span>Tüm Süreçler</span>
                     </button>
+                    {/* Admin Panel Butonu - Desktop */}
+                    {isAdmin && (
+                        <button 
+                            onClick={() => onTabChange('admin')} 
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                                activeTab === 'admin' 
+                                    ? 'bg-purple-600 text-white shadow-sm' 
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900'
+                            }`}
+                        >
+                            <span>⚙️</span>
+                            <span>Admin Panel</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -194,10 +204,11 @@ const Header = ({ onTabChange, activeTab, onToggleSidebar, onLogout, theme, hand
                     )}
                 </div>
 
-                {/* Mobile Menu Button */}
+                {/* Mobile Menu Button - Hamburger */}
                 <button 
                     onClick={onToggleSidebar} 
-                    className="p-2 rounded-full text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700 sm:hidden"
+                    className="p-2 rounded-lg text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700 md:hidden transition-colors"
+                    title="Menüyü Aç"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
