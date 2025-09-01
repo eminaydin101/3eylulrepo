@@ -9,14 +9,18 @@ const apiClient = axios.create({
 });
 
 // Otomatik olarak her isteğe JWT token'ı ekleyen mekanizma
-// Kullanıcı giriş yaptıktan sonra token'ı local storage'dan alıp kullanacağız
+// DÜZELTME: Token'ı session nesnesinden doğru şekilde alıyoruz
 apiClient.interceptors.request.use((config) => {
-    const userString = localStorage.getItem('user');
-    if (userString) {
-        // Token'ı direkt user nesnesinden değil, token'ın kendisinden almalıyız.
-        const token = JSON.parse(userString).token; 
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+    const sessionString = localStorage.getItem('session');
+    if (sessionString) {
+        try {
+            const session = JSON.parse(sessionString);
+            if (session && session.token) {
+                config.headers.Authorization = `Bearer ${session.token}`;
+            }
+        } catch (error) {
+            console.error('Token okuma hatası:', error);
+            localStorage.removeItem('session');
         }
     }
     return config;
@@ -24,6 +28,17 @@ apiClient.interceptors.request.use((config) => {
     return Promise.reject(error);
 });
 
+// Response interceptor - 401 hatalarında otomatik logout
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('session');
+            window.location.reload();
+        }
+        return Promise.reject(error);
+    }
+);
 
 // --- Kimlik Doğrulama (Auth) Fonksiyonları ---
 export const login = (credentials) => apiClient.post('/auth/login', credentials);

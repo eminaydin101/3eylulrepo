@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import * as api from '../services/api';
 import { useAuth } from './AuthContext';
-import { io } from 'socket.io-client'; // socket.io-client'ı buraya taşıyoruz
+import { io } from 'socket.io-client';
 
 const DataContext = createContext(null);
 const SOCKET_URL = 'http://localhost:3001';
@@ -16,13 +16,14 @@ export const DataProvider = ({ children }) => {
         logs: [], messages: [], onlineUsers: []
     });
     const [loading, setLoading] = useState(true);
+    const [unreadCounts, setUnreadCounts] = useState({});
 
     // Veri çekme fonksiyonu
     const fetchData = useCallback(async () => {
         if (!user) {
             setLoading(false);
             return;
-        };
+        }
         setLoading(true);
         try {
             const response = await api.getInitialData();
@@ -37,7 +38,6 @@ export const DataProvider = ({ children }) => {
     // Socket bağlantısını kurma ve olayları dinleme
     useEffect(() => {
         if (user) {
-            // Sadece bir kere socket bağlantısı kur
             const newSocket = io(SOCKET_URL);
             setSocket(newSocket);
 
@@ -49,29 +49,116 @@ export const DataProvider = ({ children }) => {
 
             newSocket.on('receive_message', (newMessage) => {
                 setData(prev => ({ ...prev, messages: [...prev.messages, newMessage] }));
+                
+                // Okunmamış mesaj sayısını güncelle
+                if (newMessage.senderId !== user.id) {
+                    setUnreadCounts(prev => ({
+                        ...prev,
+                        [newMessage.senderId]: (prev[newMessage.senderId] || 0) + 1
+                    }));
+                }
             });
 
             newSocket.on('data_changed', fetchData);
 
-            // Component unmount olduğunda bağlantıyı kes
             return () => newSocket.disconnect();
         }
-    }, [user, fetchData]); // Bağımlılıklardan socket'i çıkardık
+    }, [user, fetchData]);
 
     // İlk veri yüklemesi
     useEffect(() => {
         if (user) {
             fetchData();
         } else {
-            // Kullanıcı çıkış yaparsa verileri ve yükleme durumunu sıfırla
             setData({ processes: [], users: [], firmalar: {}, kategoriler: {}, logs: [], messages: [], onlineUsers: [] });
             setLoading(false);
         }
     }, [user, fetchData]);
 
-    // ... diğer fonksiyonlar (addProcess, addUser vs.)
+    // ===== PROCESS İŞLEMLERİ =====
+    const addProcess = useCallback(async (processData) => {
+        try {
+            await api.createProcess(processData);
+            await fetchData(); // Verileri yenile
+        } catch (error) {
+            console.error("Süreç ekleme hatası:", error);
+            throw error;
+        }
+    }, [fetchData]);
 
-    const value = { ...data, socket, loading, fetchData, /* ...diğer fonksiyonlar */ };
+    const updateProcess = useCallback(async (id, processData) => {
+        try {
+            await api.updateProcess(id, processData);
+            await fetchData(); // Verileri yenile
+        } catch (error) {
+            console.error("Süreç güncelleme hatası:", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const deleteProcess = useCallback(async (id) => {
+        try {
+            await api.deleteProcess(id);
+            await fetchData(); // Verileri yenile
+        } catch (error) {
+            console.error("Süreç silme hatası:", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    // ===== USER İŞLEMLERİ =====
+    const addUser = useCallback(async (userData) => {
+        try {
+            await api.createUser(userData);
+            await fetchData(); // Verileri yenile
+        } catch (error) {
+            console.error("Kullanıcı ekleme hatası:", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const editUser = useCallback(async (id, userData) => {
+        try {
+            await api.updateUser(id, userData);
+            await fetchData(); // Verileri yenile
+        } catch (error) {
+            console.error("Kullanıcı güncelleme hatası:", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    const removeUser = useCallback(async (id) => {
+        try {
+            await api.deleteUser(id);
+            await fetchData(); // Verileri yenile
+        } catch (error) {
+            console.error("Kullanıcı silme hatası:", error);
+            throw error;
+        }
+    }, [fetchData]);
+
+    // Okunmamış mesaj sayısını sıfırla
+    const markMessagesAsRead = useCallback((userId) => {
+        setUnreadCounts(prev => ({
+            ...prev,
+            [userId]: 0
+        }));
+    }, []);
+
+    const value = { 
+        ...data, 
+        socket, 
+        loading, 
+        unreadCounts,
+        fetchData,
+        addProcess,
+        updateProcess,
+        deleteProcess,
+        addUser,
+        editUser,
+        removeUser,
+        markMessagesAsRead
+    };
 
     return (
         <DataContext.Provider value={value}>

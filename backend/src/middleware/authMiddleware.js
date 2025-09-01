@@ -11,9 +11,11 @@ module.exports = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.user; // { id, role } gibi bilgileri request nesnesine ekle
+        // DÜZELTME: req.user'a doğru şekilde decoded verisini atıyoruz
+        req.user = { id: decoded.id, role: decoded.role };
         next();
     } catch (error) {
+        console.error("Token verification error:", error);
         res.status(401).json({ message: 'Token geçersiz.' });
     }
 };
