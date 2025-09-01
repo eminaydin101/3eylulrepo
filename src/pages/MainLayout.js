@@ -48,10 +48,75 @@ const MainLayout = () => {
     const [isProcessModalOpen, setIsProcessModalOpen] = useState(false);
     const [isProcessEditMode, setIsProcessEditMode] = useState(false);
     const [currentProcessData, setCurrentProcessData] = useState(null);
+    const [processModalFocusField, setProcessModalFocusField] = useState(null);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [isUserEditMode, setIsUserEditMode] = useState(false);
     const [currentUserData, setCurrentUserData] = useState(null);
     const [isExporting, setIsExporting] = useState(false);
+
+    // Table Column Management
+    const [tableColumns, setTableColumns] = useState([
+        { key: 'id', label: 'ID', required: true },
+        { key: 'baslik', label: 'Başlık', required: true },
+        { key: 'firma', label: 'Firma', required: false },
+        { key: 'durum', label: 'Durum', required: true },
+        { key: 'baslangicTarihi', label: 'Başlangıç Tarihi', required: false },
+        { key: 'sorumlular', label: 'Sorumlular', required: false }
+    ]);
+
+    // Dashboard'dan gelen filtre uygulama
+    const handleDashboardFilterApply = (filterType, filterValue) => {
+        // Önce processTable sekmesine geç
+        setActiveTab('processTable');
+        
+        // Filter mapping
+        const filterMappings = {
+            'sorumlu': 'sorumlu',
+            'oncelik': 'oncelik', 
+            'durum': 'durum',
+            'kategori': 'kategori',
+            'firma': 'firma',
+            'processId': 'searchTerm'
+        };
+
+        // Filtreyi uygula
+        const mappedFilterType = filterMappings[filterType];
+        if (mappedFilterType) {
+            if (filterType === 'processId') {
+                // Process ID araması için searchTerm kullan
+                setFilters(prev => ({ 
+                    ...prev, 
+                    searchTerm: filterValue 
+                }));
+            } else if (filterType === 'overdue') {
+                // Vadesi geçen süreçler için özel filtreleme
+                const today = new Date().toISOString().slice(0, 10);
+                setFilters(prev => ({ 
+                    ...prev, 
+                    controlEndDate: today,
+                    durum: 'all' // Aktif süreçleri de göster
+                }));
+                setProcessView('active');
+            } else if (filterType === 'completed_this_week') {
+                // Bu hafta tamamlananlar için özel filtreleme
+                const today = new Date();
+                const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 1));
+                setFilters(prev => ({ 
+                    ...prev, 
+                    startDate: startOfWeek.toISOString().slice(0, 10),
+                    endDate: new Date().toISOString().slice(0, 10),
+                    durum: 'Tamamlandı'
+                }));
+                setProcessView('completed');
+            } else {
+                // Normal filtreleme
+                setFilters(prev => ({ 
+                    ...prev, 
+                    [mappedFilterType]: filterValue 
+                }));
+            }
+        }
+    };
 
     const handleFilterChange = (filterName, value) => {
         setFilters(prev => ({ ...prev, [filterName]: value }));
@@ -86,7 +151,7 @@ const MainLayout = () => {
         // Basic filters
         if (filters.firma !== 'all') items = items.filter(p => p.firma === filters.firma);
         if (filters.kategori !== 'all') items = items.filter(p => p.kategori === filters.kategori);
-        if (filters.sorumlu !== 'all') items = items.filter(p => p.sorumlular.includes(filters.sorumlu));
+        if (filters.sorumlu !== 'all') items = items.filter(p => p.sorumlular?.includes(filters.sorumlu));
         if (filters.durum !== 'all') items = items.filter(p => p.durum === filters.durum);
         if (filters.oncelik !== 'all') items = items.filter(p => p.oncelikDuzeyi === filters.oncelik);
         
@@ -129,7 +194,7 @@ const MainLayout = () => {
 
     const activeRows = filteredAndSortedRows.filter(row => row.durum !== 'Tamamlandı');
     const completedRows = filteredAndSortedRows.filter(row => row.durum === 'Tamamlandı');
-    const myProcesses = useMemo(() => filteredAndSortedRows.filter(p => p.sorumlular.includes(user?.fullName)), [filteredAndSortedRows, user]);
+    const myProcesses = useMemo(() => filteredAndSortedRows.filter(p => p.sorumlular?.includes(user?.fullName)), [filteredAndSortedRows, user]);
 
     useEffect(() => { 
         document.documentElement.classList.toggle('dark', theme === 'dark'); 
@@ -140,13 +205,20 @@ const MainLayout = () => {
     const handleOpenNewProcessModal = () => { 
         setIsProcessEditMode(false); 
         setCurrentProcessData(null); 
+        setProcessModalFocusField(null);
         setIsProcessModalOpen(true); 
     };
     
-    const handleOpenEditProcessModal = (process) => { 
+    const handleOpenEditProcessModal = (process, focusField = null) => { 
         setIsProcessEditMode(true); 
         setCurrentProcessData(process); 
+        setProcessModalFocusField(focusField);
         setIsProcessModalOpen(true); 
+    };
+
+    // Process Table Row Click Handler
+    const handleProcessTableRowClick = (process, clickedField) => {
+        handleOpenEditProcessModal(process, clickedField);
     };
     
     const handleProcessSubmit = async (formData) => { 
@@ -232,6 +304,56 @@ const MainLayout = () => {
         }
     };
 
+    // Category Update Handler for Admin Panel
+    const handleCategoryUpdate = async (action, data) => {
+        try {
+            // API çağrıları buraya gelecek
+            switch(action) {
+                case 'ADD_CATEGORY':
+                    success(`"${data.name}" kategorisi eklendi`);
+                    break;
+                case 'ADD_SUBCATEGORY':
+                    success(`"${data.subCategory}" alt kategorisi eklendi`);
+                    break;
+                case 'ADD_FIRM':
+                    success(`"${data.name}" firması eklendi`);
+                    break;
+                case 'ADD_LOCATION':
+                    success(`"${data.location}" konumu eklendi`);
+                    break;
+                case 'DELETE_CATEGORY':
+                    success(`"${data.name}" kategorisi silindi`);
+                    break;
+                case 'DELETE_SUBCATEGORY':
+                    success(`"${data.subCategory}" alt kategorisi silindi`);
+                    break;
+                default:
+                    break;
+            }
+        } catch (err) {
+            error('İşlem sırasında hata oluştu');
+        }
+    };
+
+    // Table Columns Update Handler
+    const handleTableColumnsUpdate = (newColumns) => {
+        setTableColumns(newColumns);
+        localStorage.setItem('tableColumns', JSON.stringify(newColumns));
+        success('Tablo sütunları güncellendi');
+    };
+
+    // Load saved table columns
+    useEffect(() => {
+        const savedColumns = localStorage.getItem('tableColumns');
+        if (savedColumns) {
+            try {
+                setTableColumns(JSON.parse(savedColumns));
+            } catch (error) {
+                console.error('Saved columns parse error:', error);
+            }
+        }
+    }, []);
+
     if (loading) { 
         return <LoadingOverlay isVisible={true} text="Veriler Yükleniyor..." />; 
     }
@@ -262,7 +384,7 @@ const MainLayout = () => {
                             processes={processes} 
                             users={users} 
                             logs={logs} 
-                            handleGraphClick={() => {}} 
+                            onFilterApply={handleDashboardFilterApply}
                         />
                     )}
 
@@ -311,129 +433,135 @@ const MainLayout = () => {
                                     {/* View Mode Toggle */}
                                     <div className="flex items-center bg-slate-200 dark:bg-slate-700 rounded-lg p-1">
                                         <button
-                                           onClick={() => setViewMode('table')}
-                                           className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                               viewMode === 'table' 
-                                               ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow' 
-                                               : 'text-slate-600 dark:text-slate-400'
-                                           }`}
-                                       >
-                                           📋 Tablo
-                                       </button>
-                                       <button
-                                           onClick={() => setViewMode('kanban')}
-                                           className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                               viewMode === 'kanban' 
-                                               ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow' 
-                                               : 'text-slate-600 dark:text-slate-400'
-                                           }`}
-                                       >
-                                           📊 Kanban
-                                       </button>
-                                   </div>
+                                            onClick={() => setViewMode('table')}
+                                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                                viewMode === 'table' 
+                                                ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow' 
+                                                : 'text-slate-600 dark:text-slate-400'
+                                            }`}
+                                        >
+                                            📋 Tablo
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('kanban')}
+                                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                                viewMode === 'kanban' 
+                                                ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow' 
+                                                : 'text-slate-600 dark:text-slate-400'
+                                            }`}
+                                        >
+                                            📊 Kanban
+                                        </button>
+                                    </div>
 
-                                   {/* Export Button */}
-                                   <ExportButton 
-                                       data={getCurrentTableData()} 
-                                       filename={activeTab === 'myProcesses' ? 'benim-sureclerim' : 'tum-surecler'} 
-                                   />
+                                    {/* Export Button */}
+                                    <ExportButton 
+                                        data={getCurrentTableData()} 
+                                        filename={activeTab === 'myProcesses' ? 'benim-sureclerim' : 'tum-surecler'} 
+                                    />
 
-                                   {/* New Process Button */}
-                                   <button 
-                                       onClick={handleOpenNewProcessModal} 
-                                       className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                                   >
-                                       + Yeni Süreç
-                                   </button>
-                               </div>
-                           </div>
+                                    {/* New Process Button */}
+                                    <button 
+                                        onClick={handleOpenNewProcessModal} 
+                                        className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                                    >
+                                        ➕ Yeni Süreç
+                                    </button>
+                                </div>
+                            </div>
 
-                           {/* Content */}
-                           {viewMode === 'table' ? (
-                               <ProcessTable 
-                                   tableRows={getCurrentTableData()} 
-                                   onEdit={handleOpenEditProcessModal} 
-                                   sortConfig={sortConfig} 
-                                   handleSort={requestSort} 
-                                   userRole={user.role} 
-                               />
-                           ) : (
-                               <KanbanBoard 
-                                   processes={getCurrentTableData()} 
-                                   onEdit={handleOpenEditProcessModal}
-                                   onStatusChange={handleStatusChange}
-                               />
-                           )}
-                       </div>
-                   )}
+                            {/* Content */}
+                            {viewMode === 'table' ? (
+                                <ProcessTable 
+                                    tableRows={getCurrentTableData()} 
+                                    onEdit={handleOpenEditProcessModal} 
+                                    onRowClick={handleProcessTableRowClick}
+                                    sortConfig={sortConfig} 
+                                    handleSort={requestSort} 
+                                    userRole={user.role} 
+                                    visibleColumns={tableColumns}
+                                />
+                            ) : (
+                                <KanbanBoard 
+                                    processes={getCurrentTableData()} 
+                                    onEdit={handleOpenEditProcessModal}
+                                    onStatusChange={handleStatusChange}
+                                />
+                            )}
+                        </div>
+                    )}
 
-                   {isAdmin && activeTab === 'admin' && (
-                       <AdminPanel 
-                           users={users} 
-                           firmalar={firmalar} 
-                           kategoriler={kategoriler} 
-                           openUserModal={handleOpenEditUserModal} 
-                           openNewUserModal={handleOpenNewUserModal} 
-                           requestUserDelete={handleUserDelete} 
-                       />
-                   )}
-               </main>
-           </div>
+                    {isAdmin && activeTab === 'admin' && (
+                        <AdminPanel 
+                            users={users} 
+                            firmalar={firmalar} 
+                            kategoriler={kategoriler} 
+                            openUserModal={handleOpenEditUserModal} 
+                            openNewUserModal={handleOpenNewUserModal} 
+                            requestUserDelete={handleUserDelete}
+                            currentTableColumns={tableColumns}
+                            onTableColumnsUpdate={handleTableColumnsUpdate}
+                            onCategoryUpdate={handleCategoryUpdate}
+                        />
+                    )}
+                </main>
+            </div>
 
-           {/* Sidebar */}
-           <Sidebar 
-               isOpen={isSidebarOpen} 
-               onClose={() => setSidebarOpen(false)} 
-               onTabChange={setActiveTab} 
-               activeTab={activeTab} 
-               isAdmin={isAdmin} 
-           />
+            {/* Sidebar */}
+            <Sidebar 
+                isOpen={isSidebarOpen} 
+                onClose={() => setSidebarOpen(false)} 
+                onTabChange={setActiveTab} 
+                activeTab={activeTab} 
+                isAdmin={isAdmin} 
+            />
 
-           {/* Modals */}
-           {isProcessModalOpen && (
-               <ProcessModal 
-                   isOpen={isProcessModalOpen} 
-                   onClose={() => setIsProcessModalOpen(false)} 
-                   onSubmit={handleProcessSubmit} 
-                   isEditMode={isProcessEditMode} 
-                   initialData={currentProcessData} 
-                   onDelete={handleDeleteProcess} 
-               />
-           )}
+            {/* Modals */}
+            {isProcessModalOpen && (
+                <ProcessModal 
+                    isOpen={isProcessModalOpen} 
+                    onClose={() => setIsProcessModalOpen(false)} 
+                    onSubmit={handleProcessSubmit} 
+                    isEditMode={isProcessEditMode} 
+                    initialData={currentProcessData} 
+                    onDelete={handleDeleteProcess}
+                    focusField={processModalFocusField}
+                />
+            )}
 
-           {isUserModalOpen && (
-               <UserModal 
-                   isOpen={isUserModalOpen} 
-                   onClose={() => setIsUserModalOpen(false)} 
-                   onSubmit={handleUserSubmit} 
-                   isEditMode={isUserEditMode} 
-                   initialData={currentUserData} 
-               />
-           )}
+            {isUserModalOpen && (
+                <UserModal 
+                    isOpen={isUserModalOpen} 
+                    onClose={() => setIsUserModalOpen(false)} 
+                    onSubmit={handleUserSubmit} 
+                    isEditMode={isUserEditMode} 
+                    initialData={currentUserData} 
+                />
+            )}
 
-           {/* Chat Panel */}
-           {isChatOpen && (
-               <ChatPanel 
-                   user={user} 
-                   allUsers={users} 
-                   onUserSelect={() => {}} 
-                   onClose={() => setChatOpen(false)} 
-               />
-           )}
+            {/* Chat Panel */}
+            {isChatOpen && (
+                <ChatPanel 
+                    user={user} 
+                    allUsers={users} 
+                    onUserSelect={() => {}} 
+                    onClose={() => setChatOpen(false)} 
+                />
+            )}
 
-           {/* Floating Chat Button */}
-           <button 
-               onClick={() => setChatOpen(o => !o)} 
-               title="Mesajlaşma" 
-               className="fixed bottom-6 right-6 bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 z-50 transition-colors"
-           >
-               💬
-           </button>
+            {/* Floating Chat Button */}
+            <button 
+                onClick={() => setChatOpen(o => !o)} 
+                title="Mesajlaşma" 
+                className="fixed bottom-6 right-6 bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 z-50 transition-colors"
+            >
+                💬
+            </button>
 
-           {/* Loading Overlay */}
-           <LoadingOverlay isVisible={isExporting} text="Dışa aktarılıyor..." />
-       </div>
-   );
+            {/* Loading Overlay */}
+            <LoadingOverlay isVisible={isExporting} text="Dışa aktarılıyor..." />
+        </div>
+    );
 };
 
 export default MainLayout;

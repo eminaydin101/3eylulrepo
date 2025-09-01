@@ -68,11 +68,109 @@ const generateSampleProcesses = (users) => {
 
 const setupMainDbSchema = async (db) => {
     await db.exec(`
-        CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, fullName TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password TEXT, role TEXT, status TEXT, hint TEXT);
-        CREATE TABLE IF NOT EXISTS processes (id TEXT PRIMARY KEY, firma TEXT, konum TEXT, baslik TEXT, surec TEXT, mevcutDurum TEXT, baslangicTarihi TEXT, sonrakiKontrolTarihi TEXT, tamamlanmaTarihi TEXT, kategori TEXT, altKategori TEXT, oncelikDuzeyi TEXT, durum TEXT);
-        CREATE TABLE IF NOT EXISTS process_assignments (processId TEXT, userId INTEGER, PRIMARY KEY (processId, userId), FOREIGN KEY (processId) REFERENCES processes(id) ON DELETE CASCADE, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
-        CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER, userName TEXT, processId TEXT, field TEXT, oldValue TEXT, newValue TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS process_files (id INTEGER PRIMARY KEY AUTOINCREMENT, processId TEXT, originalName TEXT, filename TEXT, path TEXT, size INTEGER, mimetype TEXT, uploadedBy INTEGER, uploadedAt DATETIME, FOREIGN KEY (processId) REFERENCES processes(id) ON DELETE CASCADE, FOREIGN KEY (uploadedBy) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY, 
+            fullName TEXT NOT NULL, 
+            email TEXT NOT NULL UNIQUE, 
+            password TEXT, 
+            role TEXT, 
+            status TEXT, 
+            hint TEXT,
+            emailVerified INTEGER DEFAULT 0,
+            verificationToken TEXT,
+            resetPasswordToken TEXT,
+            resetPasswordExpires TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            lastLogin DATETIME
+        );
+        CREATE TABLE IF NOT EXISTS processes (
+            id TEXT PRIMARY KEY, 
+            firma TEXT, 
+            konum TEXT, 
+            baslik TEXT, 
+            surec TEXT, 
+            mevcutDurum TEXT, 
+            baslangicTarihi TEXT, 
+            sonrakiKontrolTarihi TEXT, 
+            tamamlanmaTarihi TEXT, 
+            kategori TEXT, 
+            altKategori TEXT, 
+            oncelikDuzeyi TEXT, 
+            durum TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS process_assignments (
+            processId TEXT, 
+            userId INTEGER, 
+            PRIMARY KEY (processId, userId), 
+            FOREIGN KEY (processId) REFERENCES processes(id) ON DELETE CASCADE, 
+            FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            userId INTEGER, 
+            userName TEXT, 
+            processId TEXT, 
+            field TEXT, 
+            oldValue TEXT, 
+            newValue TEXT, 
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS process_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            processId TEXT, 
+            originalName TEXT, 
+            filename TEXT, 
+            path TEXT, 
+            size INTEGER, 
+            mimetype TEXT, 
+            uploadedBy INTEGER, 
+            uploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP, 
+            FOREIGN KEY (processId) REFERENCES processes(id) ON DELETE CASCADE, 
+            FOREIGN KEY (uploadedBy) REFERENCES users(id)
+        );
+        CREATE TABLE IF NOT EXISTS system_settings (
+            id INTEGER PRIMARY KEY,
+            siteName TEXT DEFAULT 'Süreç Yönetimi',
+            siteDescription TEXT DEFAULT 'Profesyonel süreç takip ve yönetim sistemi',
+            logoUrl TEXT,
+            primaryColor TEXT DEFAULT '#2563eb',
+            secondaryColor TEXT DEFAULT '#64748b',
+            allowRegistration INTEGER DEFAULT 1,
+            requireEmailVerification INTEGER DEFAULT 1,
+            defaultUserRole TEXT DEFAULT 'Viewer',
+            sessionTimeout INTEGER DEFAULT 24,
+            maxFileSize INTEGER DEFAULT 50,
+            allowedFileTypes TEXT DEFAULT '.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip',
+            emailNotifications INTEGER DEFAULT 1,
+            systemLanguage TEXT DEFAULT 'tr',
+            dateFormat TEXT DEFAULT 'DD/MM/YYYY',
+            currency TEXT DEFAULT 'TRY',
+            updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS subcategories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            categoryId INTEGER,
+            name TEXT NOT NULL,
+            FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS firms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firmId INTEGER,
+            name TEXT NOT NULL,
+            FOREIGN KEY (firmId) REFERENCES firms(id) ON DELETE CASCADE
+        );
     `);
 
     const userCount = await db.get('SELECT COUNT(*) as count FROM users');
@@ -80,8 +178,13 @@ const setupMainDbSchema = async (db) => {
         console.log('Veritabanı boş, örnek veriler ekleniyor...');
         const sampleUsers = await getSampleUsers();
         for (const user of sampleUsers) {
-            await db.run('INSERT INTO users (id, fullName, email, password, role, status, hint) VALUES (?, ?, ?, ?, ?, ?, ?)', user.id, user.fullName, user.email, user.password, user.role, user.status, user.hint);
+            await db.run('INSERT INTO users (id, fullName, email, password, role, status, hint, emailVerified) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+                user.id, user.fullName, user.email, user.password, user.role, user.status, user.hint, 1);
         }
+        
+        // Default system settings
+        await db.run('INSERT INTO system_settings (id) VALUES (1)');
+        
         const sampleProcesses = generateSampleProcesses(sampleUsers);
         for (const process of sampleProcesses) {
             const { sorumlular, ...processData } = process;

@@ -9,7 +9,6 @@ const apiClient = axios.create({
 });
 
 // Otomatik olarak her isteğe JWT token'ı ekleyen mekanizma
-// DÜZELTME: Token'ı session nesnesinden doğru şekilde alıyoruz
 apiClient.interceptors.request.use((config) => {
     const sessionString = localStorage.getItem('session');
     if (sessionString) {
@@ -43,6 +42,9 @@ apiClient.interceptors.response.use(
 // --- Kimlik Doğrulama (Auth) Fonksiyonları ---
 export const login = (credentials) => apiClient.post('/auth/login', credentials);
 export const register = (userData) => apiClient.post('/auth/register', userData);
+export const forgotPassword = (data) => apiClient.post('/auth/forgot-password', data);
+export const resetPassword = (data) => apiClient.post('/auth/reset-password', data);
+export const verifyEmail = (data) => apiClient.post('/auth/verify-email', data);
 
 // --- Veri (Data) Fonksiyonları ---
 export const getInitialData = () => apiClient.get('/processes/initial-data');
@@ -64,3 +66,11 @@ export const uploadFiles = (processId, formData) => {
 export const getProcessFiles = (processId) => apiClient.get(`/files/${processId}`);
 export const downloadFile = (fileId) => apiClient.get(`/files/download/${fileId}`, { responseType: 'blob' });
 export const deleteFile = (fileId) => apiClient.delete(`/files/${fileId}`);
+
+// --- Sistem (System) Fonksiyonları ---
+export const getSystemSettings = () => apiClient.get('/system/settings');
+export const updateSystemSettings = (formData) => {
+    return apiClient.post('/system/settings', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
