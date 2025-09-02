@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import UserManagement from './UserManagement';
 import CategoryManager from './admin/CategoryManager';
 import TableColumnManager from './admin/TableColumnManager';
 import SystemSettings from './admin/SystemSettings';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
-import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import * as api from '../services/api';
 
@@ -1034,6 +1033,5 @@ const BackupManagement = ({
     );
 };
 
-export default BackupManagement;
-
 export default AdminPanel;
+
