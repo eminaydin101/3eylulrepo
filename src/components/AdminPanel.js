@@ -16,7 +16,14 @@ const AdminPanel = ({
     requestUserDelete,
     currentTableColumns,
     onTableColumnsUpdate,
-    onCategoryUpdate
+    onCategoryUpdate,
+    onDatabaseBackup,
+    onCleanTempFiles,
+    onGenerateSystemReport,
+    onClearAllLogs,
+    onFactoryReset,
+    onExportLogs,
+    systemOperationLoading
 }) => {
     const [activeSection, setActiveSection] = useState('users');
 
@@ -126,12 +133,9 @@ const AdminPanel = ({
 
     return (
         <div className="space-y-6">
-            {/* Admin Stats */}
             <AdminStats />
 
-            {/* Main Content */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Sidebar Navigation */}
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-fit">
                     <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">
                         ⚙️ Admin Panel
@@ -143,7 +147,6 @@ const AdminPanel = ({
                     </div>
                 </div>
 
-                {/* Content Area */}
                 <div className="lg:col-span-3">
                     {activeSection === 'users' && (
                         <UserManagement 
@@ -178,11 +181,23 @@ const AdminPanel = ({
                     )}
 
                     {activeSection === 'logs' && (
-                        <SystemLogs logs={logs} />
+                        <SystemLogs 
+                            logs={logs} 
+                            onExportLogs={onExportLogs}
+                            onClearAllLogs={onClearAllLogs}
+                            systemOperationLoading={systemOperationLoading}
+                        />
                     )}
 
                     {activeSection === 'backup' && (
-                        <BackupManagement />
+                        <BackupManagement 
+                            onDatabaseBackup={onDatabaseBackup}
+                            onCleanTempFiles={onCleanTempFiles}
+                            onGenerateSystemReport={onGenerateSystemReport}
+                            onClearAllLogs={onClearAllLogs}
+                            onFactoryReset={onFactoryReset}
+                            systemOperationLoading={systemOperationLoading}
+                        />
                     )}
                 </div>
             </div>
@@ -190,7 +205,6 @@ const AdminPanel = ({
     );
 };
 
-// Admin Statistics Component
 const AdminStatistics = ({ processes, users, logs }) => {
     const [dateRange, setDateRange] = useState('7');
 
@@ -438,8 +452,7 @@ const AdminStatistics = ({ processes, users, logs }) => {
     );
 };
 
-// System Logs Component
-const SystemLogs = ({ logs }) => {
+const SystemLogs = ({ logs, onExportLogs, onClearAllLogs, systemOperationLoading }) => {
     const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
@@ -485,10 +498,18 @@ const SystemLogs = ({ logs }) => {
             <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold heading-modern">📝 Sistem Logları</h3>
                 <div className="flex gap-3">
-                    <button className="btn-secondary text-sm">
+                    <button 
+                        onClick={onExportLogs}
+                        disabled={systemOperationLoading}
+                        className="btn-secondary text-sm disabled:opacity-50"
+                    >
                         📥 Dışa Aktar
                     </button>
-                    <button className="btn-danger text-sm">
+                    <button 
+                        onClick={onClearAllLogs}
+                        disabled={systemOperationLoading}
+                        className="btn-danger text-sm disabled:opacity-50"
+                    >
                         🗑️ Temizle
                     </button>
                 </div>
@@ -615,8 +636,14 @@ const SystemLogs = ({ logs }) => {
     );
 };
 
-// Backup Management Component
-const BackupManagement = () => {
+const BackupManagement = ({ 
+    onDatabaseBackup, 
+    onCleanTempFiles, 
+    onGenerateSystemReport, 
+    onClearAllLogs, 
+    onFactoryReset, 
+    systemOperationLoading 
+}) => {
     const [backups, setBackups] = useState([
         { id: 1, name: 'Otomatik Yedek - 15.01.2025', date: '2025-01-15T10:30:00', size: '2.3 MB', type: 'auto' },
         { id: 2, name: 'Manuel Yedek - 14.01.2025', date: '2025-01-14T16:45:00', size: '2.1 MB', type: 'manual' },
@@ -632,13 +659,18 @@ const BackupManagement = () => {
             type: 'manual'
         };
         setBackups([newBackup, ...backups]);
+        onDatabaseBackup();
     };
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold heading-modern">💾 Yedekleme Yönetimi</h3>
-                <button onClick={createBackup} className="btn-primary">
+                <button 
+                    onClick={createBackup} 
+                    disabled={systemOperationLoading}
+                    className="btn-primary disabled:opacity-50"
+                >
                     💾 Yeni Yedek Oluştur
                 </button>
             </div>
@@ -672,7 +704,7 @@ const BackupManagement = () => {
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                             Maksimum Yedek Sayısı
                         </label>
-                        <input type="number" value="10" className="input-modern" />
+                        <input type="number" defaultValue="10" className="input-modern" />
                     </div>
                 </div>
             </div>
@@ -706,12 +738,70 @@ const BackupManagement = () => {
                                 <button className="btn-primary text-sm">
                                     🔄 Geri Yükle
                                 </button>
-                                <button className="btn-danger text-sm">
+                                <button 
+                                    onClick={() => setBackups(backups.filter(b => b.id !== backup.id))}
+                                    className="btn-danger text-sm"
+                                >
                                     🗑️
                                 </button>
                             </div>
                         </div>
                     ))}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+                <div className={`card-modern p-6`}>
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
+                        ⚡ Gelişmiş Ayarlar
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <h4 className="font-medium text-slate-700 dark:text-slate-300">🗄️ Veritabanı</h4>
+                            <div className="space-y-2">
+                                <button 
+                                    onClick={onDatabaseBackup}
+                                    disabled={systemOperationLoading}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white p-3 rounded-lg font-medium transition-colors"
+                                >
+                                    💾 Veritabanı Yedeği Al
+                                </button>
+                                <button 
+                                    onClick={onCleanTempFiles}
+                                    disabled={systemOperationLoading}
+                                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-slate-400 text-white p-3 rounded-lg font-medium transition-colors"
+                                >
+                                    🧹 Geçici Dosyaları Temizle
+                                </button>
+                                <button 
+                                    onClick={onGenerateSystemReport}
+                                    disabled={systemOperationLoading}
+                                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-slate-400 text-white p-3 rounded-lg font-medium transition-colors"
+                                >
+                                    📊 Sistem Raporunu Oluştur
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <h4 className="font-medium text-slate-700 dark:text-slate-300">⚠️ Tehlikeli İşlemler</h4>
+                            <div className="space-y-2">
+                                <button 
+                                    onClick={onClearAllLogs}
+                                    disabled={systemOperationLoading}
+                                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-slate-400 text-white p-3 rounded-lg font-medium transition-colors"
+                                >
+                                    🗑️ Tüm Log Kayıtlarını Temizle
+                                </button>
+                                <button 
+                                    onClick={onFactoryReset}
+                                    disabled={systemOperationLoading}
+                                    className="w-full bg-red-700 hover:bg-red-800 disabled:bg-slate-400 text-white p-3 rounded-lg font-medium transition-colors"
+                                >
+                                    ⚠️ Sistemi Fabrika Ayarlarına Sıfırla
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -724,12 +814,16 @@ const BackupManagement = () => {
                 <div className="card-modern p-6 text-center">
                     <div className="text-3xl mb-2">💾</div>
                     <h5 className="font-semibold text-slate-800 dark:text-slate-200">Toplam Boyut</h5>
-                    <p className="text-2xl font-bold text-green-600">6.6 MB</p>
+                    <p className="text-2xl font-bold text-green-600">
+                        {(backups.reduce((total, backup) => total + parseFloat(backup.size), 0)).toFixed(1)} MB
+                    </p>
                 </div>
                 <div className="card-modern p-6 text-center">
                     <div className="text-3xl mb-2">📅</div>
                     <h5 className="font-semibold text-slate-800 dark:text-slate-200">Son Yedek</h5>
-                    <p className="text-2xl font-bold text-purple-600">Bugün</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                        {backups.length > 0 ? new Date(backups[0].date).toLocaleDateString('tr-TR') : 'Hiç'}
+                    </p>
                 </div>
             </div>
         </div>
