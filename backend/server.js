@@ -11,6 +11,7 @@ const processRoutes = require('./src/routes/processes');
 const userRoutes = require('./src/routes/users');
 const fileRoutes = require('./src/routes/files');
 const systemRoutes = require('./src/routes/system');
+const backupRoutes = require('./src/routes/backup'); // YENİ: Backup routes
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +35,7 @@ app.use('/api/processes', processRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/backup', backupRoutes); // YENİ: Backup routes
 
 // --- YENİ VE GELİŞTİRİLMİŞ SOCKET MANTIĞI ---
 let onlineUsers = {}; // Online kullanıcıları { userId: { user, socketId } } formatında tutacağız

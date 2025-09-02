@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { LoadingOverlay } from '../components/LoadingSpinner';
 import { Profile, Settings } from '../components/ProfileSettings';
+import * as api from '../services/api';
 
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
@@ -335,98 +336,91 @@ const MainLayout = () => {
     // AKTIF EDİLEN YENİ BUTON FONKSİYONLARI
 
     // System Operations
-    const handleDatabaseBackup = async () => {
+    // Bu fonksiyonları mevcut MainLayout.js dosyasında bulup değiştirin:
+
+const handleDatabaseBackup = async () => {
+    setSystemOperationLoading(true);
+    try {
+        const response = await api.createDatabaseBackup();
+        success(response.data.message);
+        await fetchData(); // Refresh data
+    } catch (err) {
+        error('Yedekleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+    } finally {
+        setSystemOperationLoading(false);
+    }
+};
+
+const handleCleanTempFiles = async () => {
+    setSystemOperationLoading(true);
+    try {
+        const response = await api.cleanTempFiles();
+        success(response.data.message + ` (${response.data.stats.cleanedFiles} dosya, ${response.data.stats.freedSpace} alan temizlendi)`);
+    } catch (err) {
+        error('Dosya temizleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+    } finally {
+        setSystemOperationLoading(false);
+    }
+};
+
+const handleGenerateSystemReport = async () => {
+    setSystemOperationLoading(true);
+    try {
+        const response = await api.generateSystemReport();
+        
+        // Raporu JSON olarak indir
+        const reportData = response.data.report;
+        const reportJson = JSON.stringify(reportData, null, 2);
+        const blob = new Blob([reportJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sistem-raporu-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        success('Sistem raporu oluşturuldu ve indiriliyor');
+    } catch (err) {
+        error('Rapor oluşturma işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+    } finally {
+        setSystemOperationLoading(false);
+    }
+};
+
+const handleClearAllLogs = async () => {
+    if (window.confirm('Tüm log kayıtlarını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
         setSystemOperationLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
-            success('Veritabanı yedeği başarıyla oluşturuldu');
-            await fetchData(); // Refresh data
+            const response = await api.clearAllLogs();
+            success(response.data.message + ` (${response.data.deletedLogs} log silindi)`);
+            await fetchData();
         } catch (err) {
-            error('Yedekleme işlemi sırasında hata oluştu');
+            error('Log temizleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
         } finally {
             setSystemOperationLoading(false);
         }
-    };
+    }
+};
 
-    const handleCleanTempFiles = async () => {
+const handleFactoryReset = async () => {
+    if (window.confirm('⚠️ DİKKAT: Sistemi fabrika ayarlarına sıfırlarsanız TÜM VERİLER silinecektir. Bu işlem geri alınamaz. Devam etmek istediğinizden emin misiniz?') &&
+        window.confirm('Son kez soruyorum: TÜM VERİLERİN SİLİNMESİNİ onaylıyor musunuz?')) {
         setSystemOperationLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            success('Geçici dosyalar temizlendi');
+            const response = await api.factoryReset();
+            success('Sistem fabrika ayarlarına sıfırlandı');
+            setTimeout(() => {
+                logout();
+            }, 2000);
         } catch (err) {
-            error('Dosya temizleme işlemi sırasında hata oluştu');
+            error('Sistem sıfırlama işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
         } finally {
             setSystemOperationLoading(false);
         }
-    };
-
-    const handleGenerateSystemReport = async () => {
-        setSystemOperationLoading(true);
-        try {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Generate and download report
-            const reportData = {
-                timestamp: new Date().toISOString(),
-                totalUsers: users?.length || 0,
-                totalProcesses: processes?.length || 0,
-                activeProcesses: processes?.filter(p => p.durum !== 'Tamamlandı').length || 0,
-                completedProcesses: processes?.filter(p => p.durum === 'Tamamlandı').length || 0,
-                totalLogs: logs?.length || 0,
-                systemHealth: '98%'
-            };
-
-            const reportJson = JSON.stringify(reportData, null, 2);
-            const blob = new Blob([reportJson], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `sistem-raporu-${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            success('Sistem raporu oluşturuldu ve indiriliyor');
-        } catch (err) {
-            error('Rapor oluşturma işlemi sırasında hata oluştu');
-        } finally {
-            setSystemOperationLoading(false);
-        }
-    };
-
-    const handleClearAllLogs = async () => {
-        if (window.confirm('Tüm log kayıtlarını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
-            setSystemOperationLoading(true);
-            try {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                success('Tüm log kayıtları temizlendi');
-                await fetchData();
-            } catch (err) {
-                error('Log temizleme işlemi sırasında hata oluştu');
-            } finally {
-                setSystemOperationLoading(false);
-            }
-        }
-    };
-
-    const handleFactoryReset = async () => {
-        if (window.confirm('⚠️ DİKKAT: Sistemi fabrika ayarlarına sıfırlarsanız TÜM VERİLER silinecektir. Bu işlem geri alınamaz. Devam etmek istediğinizden emin misiniz?') &&
-            window.confirm('Son kez soruyorum: TÜM VERİLERİN SİLİNMESİNİ onaylıyor musunuz?')) {
-            setSystemOperationLoading(true);
-            try {
-                await new Promise(resolve => setTimeout(resolve, 5000));
-                success('Sistem fabrika ayarlarına sıfırlandı');
-                setTimeout(() => {
-                    logout();
-                }, 2000);
-            } catch (err) {
-                error('Sistem sıfırlama işlemi sırasında hata oluştu');
-            } finally {
-                setSystemOperationLoading(false);
-            }
-        }
-    };
+    }
+};
 
     const handleExportLogs = async () => {
         setIsExporting(true);

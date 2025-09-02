@@ -74,3 +74,20 @@ export const updateSystemSettings = (formData) => {
         headers: { 'Content-Type': 'multipart/form-data' }
     });
 };
+
+// --- YENİ: Backup (Yedekleme) Fonksiyonları ---
+export const getBackups = () => apiClient.get('/backup');
+export const createDatabaseBackup = () => apiClient.post('/backup/database');
+export const cleanTempFiles = () => apiClient.post('/backup/clean-temp');
+export const generateSystemReport = () => apiClient.post('/backup/system-report');
+export const clearAllLogs = () => apiClient.post('/backup/clear-logs');
+export const factoryReset = () => apiClient.post('/backup/factory-reset');
+export const downloadBackup = (fileName) => {
+    return apiClient.get(`/backup/download/${fileName}`, { 
+        responseType: 'blob',
+        headers: {
+            'Accept': 'application/octet-stream'
+        }
+    });
+};
+export const deleteBackup = (fileName) => apiClient.delete(`/backup/${fileName}`);
