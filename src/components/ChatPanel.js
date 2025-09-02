@@ -17,13 +17,13 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg p-2 w-64 z-50">
+        <div className="absolute bottom-full left-0 mb-2 glass rounded-2xl shadow-modern p-3 w-72 z-50 animate-slide-up">
             <div className="grid grid-cols-10 gap-1 max-h-32 overflow-y-auto">
                 {emojis.map((emoji, index) => (
                     <button
                         key={index}
                         onClick={() => onEmojiSelect(emoji)}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-600 rounded text-lg"
+                        className="p-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg text-xl transition-all duration-200 transform hover:scale-110"
                         type="button"
                     >
                         {emoji}
@@ -40,7 +40,6 @@ const GifPicker = ({ onGifSelect, isOpen, onClose }) => {
     const [gifs, setGifs] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Trending GIFs (mock data)
     const trendingGifs = [
         { id: 1, url: 'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif', title: 'Happy' },
         { id: 2, url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif', title: 'Thumbs Up' },
@@ -74,8 +73,8 @@ const GifPicker = ({ onGifSelect, isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg p-3 w-80 z-50">
-            <div className="mb-3">
+        <div className="absolute bottom-full left-0 mb-2 glass rounded-2xl shadow-modern p-4 w-80 z-50 animate-slide-up">
+            <div className="mb-4">
                 <div className="flex gap-2">
                     <input
                         type="text"
@@ -83,11 +82,11 @@ const GifPicker = ({ onGifSelect, isOpen, onClose }) => {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                        className="flex-1 p-2 text-sm border border-slate-300 dark:border-slate-600 rounded dark:bg-slate-600 dark:text-slate-200"
+                        className="input-modern flex-1 text-sm"
                     />
                     <button
                         onClick={handleSearch}
-                        className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        className="btn-primary px-4 py-2 text-sm"
                         type="button"
                     >
                         🔍
@@ -97,15 +96,15 @@ const GifPicker = ({ onGifSelect, isOpen, onClose }) => {
             
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                 {loading ? (
-                    <div className="col-span-2 text-center py-4 text-slate-500">
-                        Aranıyor...
+                    <div className="col-span-2 text-center py-8">
+                        <div className="spinner-modern mx-auto"></div>
                     </div>
                 ) : gifs.length > 0 ? (
                     gifs.map(gif => (
                         <button
                             key={gif.id}
                             onClick={() => onGifSelect(gif.url)}
-                            className="rounded overflow-hidden hover:opacity-80 transition-opacity"
+                            className="rounded-xl overflow-hidden hover:opacity-80 transition-all duration-200 transform hover:scale-105"
                             type="button"
                         >
                             <img 
@@ -202,29 +201,50 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // File size check (5MB limit)
         if (file.size > 5 * 1024 * 1024) {
             error('Dosya boyutu 5MB\'dan küçük olmalıdır');
             return;
         }
 
-        // Create a file URL for preview
         const fileName = file.name;
-        
-        // Send file message
         handleSendMessage(null, 'file', `📁 ${fileName}`);
-        
         success(`${fileName} dosyası gönderildi`);
-        e.target.value = ''; // Reset input
+        e.target.value = '';
     };
 
     const formatMessageTime = (timestamp) => {
         const date = new Date(timestamp);
-        return date.toLocaleTimeString('tr-TR', { 
+        const istanbulTime = new Date(date.toLocaleString("en-US", {timeZone: "Europe/Istanbul"}));
+        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Istanbul"}));
+        
+        const diffInMinutes = Math.floor((now - istanbulTime) / (1000 * 60));
+        
+        if (diffInMinutes < 1) return istanbulTime.toLocaleTimeString('tr-TR', { 
             hour: '2-digit', 
             minute: '2-digit',
-            day: '2-digit',
-            month: '2-digit'
+            timeZone: 'Europe/Istanbul'
+        });
+        
+        if (diffInMinutes < 60) return `${diffInMinutes} dk önce`;
+        if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} saat önce`;
+        
+        const today = new Date().toDateString();
+        const messageDate = istanbulTime.toDateString();
+        
+        if (messageDate === today) {
+            return istanbulTime.toLocaleTimeString('tr-TR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                timeZone: 'Europe/Istanbul'
+            });
+        }
+        
+        return istanbulTime.toLocaleDateString('tr-TR', {
+            timeZone: 'Europe/Istanbul'
+        }) + ' ' + istanbulTime.toLocaleTimeString('tr-TR', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            timeZone: 'Europe/Istanbul'
         });
     };
 
@@ -232,24 +252,24 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
         const isOwn = msg.senderId === user.id;
         
         return (
-            <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}>
-                <div className={`max-w-[85%] px-4 py-3 rounded-2xl relative ${isOwn 
-                    ? 'bg-blue-500 text-white rounded-br-md' 
-                    : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 shadow-sm border border-slate-200 dark:border-slate-600 rounded-bl-md'
+            <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4 animate-slide-up`}>
+                <div className={`max-w-[85%] px-4 py-3 rounded-2xl relative transition-all duration-300 hover:shadow-lg ${isOwn 
+                    ? 'gradient-primary text-white rounded-br-md shadow-modern' 
+                    : 'glass text-slate-800 dark:text-slate-200 shadow-modern rounded-bl-md border border-white/20 dark:border-slate-700/50'
                 }`}>
                     {msg.type === 'gif' ? (
                         <div className="mb-2">
                             <img 
                                 src={msg.content} 
                                 alt="GIF" 
-                                className="max-w-full h-auto rounded-lg"
+                                className="max-w-full h-auto rounded-xl shadow-lg"
                                 style={{ maxHeight: '200px' }}
                             />
                         </div>
                     ) : msg.type === 'file' ? (
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">📎</span>
-                            <span className="text-sm">{msg.content}</span>
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="text-3xl">📎</span>
+                            <span className="text-sm font-medium">{msg.content}</span>
                         </div>
                     ) : (
                         <p className="text-sm leading-relaxed">{msg.content}</p>
@@ -266,17 +286,17 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
     };
 
     return (
-        <div ref={chatPanelRef} className="fixed bottom-28 right-6 w-[650px] h-[80vh] max-w-[95vw] max-h-[85vh] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col z-40 border dark:border-slate-700">
+        <div ref={chatPanelRef} className="fixed bottom-28 right-6 w-[700px] h-[85vh] max-w-[95vw] max-h-[90vh] glass rounded-2xl shadow-modern flex flex-col z-40 border border-white/20 dark:border-slate-700/50 animate-slide-up">
             <div className="w-full h-full flex">
                 {/* Contacts Sidebar */}
-                <div className="w-2/5 border-r dark:border-slate-700 flex flex-col">
-                    <div className="p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-between">
+                <div className="w-2/5 border-r border-white/20 dark:border-slate-700/50 flex flex-col">
+                    <div className="p-4 border-b border-white/20 dark:border-slate-700/50 gradient-secondary flex items-center justify-between rounded-tl-2xl">
                         <h3 className="font-bold text-center text-slate-800 dark:text-slate-200">
                             💬 Kişiler ({allUsers.filter(u => u.id !== user.id).length})
                         </h3>
                         <button 
                             onClick={onClose}
-                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-lg hover:bg-white/20 dark:hover:bg-slate-700/50 transition-all duration-200"
                         >
                             ✕
                         </button>
@@ -291,14 +311,14 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                                 <li key={contact.id}>
                                     <button 
                                         onClick={() => handleUserClick(contact.id)} 
-                                        className={`w-full text-left p-4 flex items-center gap-3 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${selectedUserId === contact.id ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}
+                                        className={`w-full text-left p-4 flex items-center gap-3 hover:bg-white/10 dark:hover:bg-slate-700/30 transition-all duration-200 ${selectedUserId === contact.id ? 'bg-blue-100/20 dark:bg-blue-900/20' : ''}`}
                                     >
                                         <div className="relative">
-                                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                            <div className="w-12 h-12 gradient-primary text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg">
                                                 {contactInitials}
                                             </div>
                                             {isOnline && (
-                                                <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-slate-800"></span>
+                                                <span className="absolute bottom-0 right-0 block h-4 w-4 rounded-full bg-green-500 border-2 border-white dark:border-slate-800 animate-pulse"></span>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -307,7 +327,7 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                                                     {contact.fullName}
                                                 </span>
                                                 {unreadCount > 0 && (
-                                                    <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 font-bold min-w-[20px] text-center">
+                                                    <span className="bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs rounded-full px-2 py-0.5 font-bold min-w-[20px] text-center animate-bounce shadow-lg">
                                                         {unreadCount > 99 ? '99+' : unreadCount}
                                                     </span>
                                                 )}
@@ -328,8 +348,8 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                     {selectedUser ? (
                         <>
                             {/* Chat Header */}
-                            <div className="p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                            <div className="p-4 border-b border-white/20 dark:border-slate-700/50 gradient-secondary flex items-center gap-3 rounded-tr-2xl">
+                                <div className="w-10 h-10 gradient-primary text-white rounded-full flex items-center justify-center font-bold text-xs shadow-lg">
                                     {selectedUser.fullName.split(' ').map(n => n[0]).join('')}
                                 </div>
                                 <div>
@@ -339,13 +359,13 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                             </div>
 
                             {/* Messages Area */}
-                            <div className="flex-1 p-4 overflow-y-auto bg-slate-50 dark:bg-slate-900">
+                            <div className="flex-1 p-4 overflow-y-auto gradient-secondary">
                                 {filteredMessages.length === 0 ? (
                                     <div className="text-center text-slate-500 dark:text-slate-400 mt-8">
-                                        <div className="w-16 h-16 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                                        <div className="w-20 h-20 gradient-primary rounded-full mx-auto mb-4 flex items-center justify-center text-4xl animate-float">
                                             💬
                                         </div>
-                                        <p>Henüz mesaj yok</p>
+                                        <p className="font-semibold">Henüz mesaj yok</p>
                                         <p className="text-xs">İlk mesajı gönderin!</p>
                                     </div>
                                 ) : (
@@ -355,14 +375,14 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                             </div>
 
                             {/* Message Input */}
-                            <div className="p-4 border-t dark:border-slate-700 bg-white dark:bg-slate-800">
-                                <form onSubmit={handleSendMessage} className="flex gap-2">
+                            <div className="p-4 border-t border-white/20 dark:border-slate-700/50 glass rounded-br-2xl">
+                                <form onSubmit={handleSendMessage} className="flex gap-3">
                                     <div className="flex-1 relative">
                                         <input 
                                             type="text" 
                                             value={messageContent} 
                                             onChange={e => setMessageContent(e.target.value)} 
-                                            className="w-full p-3 pr-16 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-200" 
+                                            className="input-modern pr-16" 
                                             placeholder="Mesajınızı yazın..." 
                                             maxLength={500}
                                         />
@@ -373,26 +393,27 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                                     <button 
                                         type="submit" 
                                         disabled={!messageContent.trim()}
-                                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                                        className="btn-primary px-8 py-4 text-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                                        title="Mesaj Gönder"
                                     >
-                                        📤
+                                        🚀
                                     </button>
                                 </form>
                                 
                                 {/* Media Controls */}
-                                <div className="flex items-center gap-3 mt-3 relative">
+                                <div className="flex items-center gap-4 mt-4 relative">
                                     {/* Emoji Picker */}
                                     <div className="relative">
                                         <button 
                                             type="button"
-                                            className="p-2 text-slate-500 hover:text-blue-600 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" 
+                                            className="p-3 text-slate-500 hover:text-blue-600 transition-all duration-200 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover-lift" 
                                             onClick={() => {
                                                 setIsEmojiPickerOpen(!isEmojiPickerOpen);
                                                 setIsGifPickerOpen(false);
                                             }}
                                             title="Emoji Ekle"
                                         >
-                                            <span className="text-lg">😀</span>
+                                            <span className="text-2xl">😀</span>
                                         </button>
                                         <EmojiPicker 
                                             isOpen={isEmojiPickerOpen}
@@ -405,14 +426,14 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                                     <div className="relative">
                                         <button 
                                             type="button"
-                                            className="p-2 text-slate-500 hover:text-purple-600 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" 
+                                            className="p-3 text-slate-500 hover:text-purple-600 transition-all duration-200 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 hover-lift" 
                                             onClick={() => {
                                                 setIsGifPickerOpen(!isGifPickerOpen);
                                                 setIsEmojiPickerOpen(false);
                                             }}
                                             title="GIF Ekle"
                                         >
-                                            <span className="text-lg">🎬</span>
+                                            <span className="text-2xl">🎬</span>
                                         </button>
                                         <GifPicker 
                                             isOpen={isGifPickerOpen}
@@ -431,29 +452,32 @@ const ChatPanel = ({ user, allUsers, onUserSelect, onClose }) => {
                                     />
                                     <button 
                                         type="button"
-                                        className="p-2 text-slate-500 hover:text-green-600 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" 
+                                        className="p-3 text-slate-500 hover:text-green-600 transition-all duration-200 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 hover-lift" 
                                         onClick={() => fileInputRef.current?.click()}
                                         title="Dosya Ekle"
                                     >
-                                        <span className="text-lg">📎</span>
+                                        <span className="text-2xl">📎</span>
                                     </button>
 
                                     <div className="flex-1"></div>
                                     
                                     {/* Online Status */}
-                                    <div className="text-xs text-slate-400">
-                                        {onlineUsers.length} kişi çevrimiçi
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                        <span className="text-xs text-slate-400 font-medium">
+                                            {onlineUsers.length} çevrimiçi
+                                        </span>
                                     </div>
                                 </div>
                             </div>
                         </>
                     ) : (
-                        <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400 p-6 text-center">
+                        <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400 p-6 text-center gradient-secondary rounded-tr-2xl rounded-br-2xl">
                             <div>
-                                <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
+                                <div className="w-24 h-24 gradient-primary rounded-full mx-auto mb-4 flex items-center justify-center text-4xl animate-float">
                                     💬
                                 </div>
-                                <h3 className="font-semibold mb-2">Mesajlaşma</h3>
+                                <h3 className="font-semibold mb-2 text-lg">Mesajlaşma</h3>
                                 <p className="text-sm">Konuşma başlatmak için soldaki listeden bir kişi seçin</p>
                             </div>
                         </div>

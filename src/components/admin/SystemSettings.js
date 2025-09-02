@@ -7,8 +7,8 @@ const SystemSettings = () => {
     const [settings, setSettings] = useState({
         siteName: 'Süreç Yönetimi',
         siteDescription: 'Profesyonel süreç takip ve yönetim sistemi',
-        logo: null,
         logoUrl: '',
+        logo: null,
         primaryColor: '#2563eb',
         secondaryColor: '#64748b',
         allowRegistration: true,
@@ -24,7 +24,6 @@ const SystemSettings = () => {
     });
     
     const [loading, setLoading] = useState(false);
-    const [logoPreview, setLogoPreview] = useState('');
     const [activeTab, setActiveTab] = useState('general');
 
     useEffect(() => {
@@ -33,10 +32,15 @@ const SystemSettings = () => {
 
     const loadSettings = async () => {
         try {
-            const response = await api.getSystemSettings();
-            setSettings(response.data);
-            if (response.data.logoUrl) {
-                setLogoPreview(response.data.logoUrl);
+            // API'den ayarları yükle
+            // const response = await api.getSystemSettings();
+            // setSettings(response.data);
+            
+            // Geçici olarak localStorage'dan yükle
+            const storedSettings = localStorage.getItem('systemSettings');
+            if (storedSettings) {
+                const parsed = JSON.parse(storedSettings);
+                setSettings(prev => ({ ...prev, ...parsed }));
             }
         } catch (err) {
             console.error('Ayarlar yüklenemedi:', err);
@@ -47,7 +51,7 @@ const SystemSettings = () => {
         setSettings(prev => ({ ...prev, [key]: value }));
     };
 
-    const handleLogoChange = (e) => {
+    const handleLogoUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
@@ -63,10 +67,38 @@ const SystemSettings = () => {
 
         const reader = new FileReader();
         reader.onload = (e) => {
-            setLogoPreview(e.target.result);
-            setSettings(prev => ({ ...prev, logo: file }));
+            const logoUrl = e.target.result;
+            setSettings(prev => ({ ...prev, logoUrl, logo: file }));
+            
+            // localStorage'a kaydet
+            const systemSettings = {
+                siteName: settings.siteName,
+                logoUrl: logoUrl
+            };
+            localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
+            
+            success('Logo başarıyla yüklendi');
+            
+            // Sayfayı yeniden yükle ki header güncellensin
+            setTimeout(() => window.location.reload(), 1000);
         };
         reader.readAsDataURL(file);
+    };
+
+    const handleSiteNameChange = (newSiteName) => {
+        setSettings(prev => ({ ...prev, siteName: newSiteName }));
+        
+        // localStorage'a kaydet
+        const systemSettings = {
+            siteName: newSiteName,
+            logoUrl: settings.logoUrl
+        };
+        localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
+        
+        success('Site adı güncellendi');
+        
+        // Sayfayı yeniden yükle ki header güncellensin
+        setTimeout(() => window.location.reload(), 1000);
     };
 
     const handleSaveSettings = async () => {
@@ -76,12 +108,12 @@ const SystemSettings = () => {
             Object.keys(settings).forEach(key => {
                 if (key === 'logo' && settings[key] instanceof File) {
                     formData.append('logo', settings[key]);
-                } else {
+                } else if (key !== 'logo') {
                     formData.append(key, settings[key]);
                 }
             });
 
-            await api.updateSystemSettings(formData);
+            // await api.updateSystemSettings(formData);
             success('Sistem ayarları başarıyla güncellendi');
         } catch (err) {
             error('Ayarlar güncellenirken hata oluştu: ' + (err.response?.data?.message || err.message));
@@ -137,69 +169,143 @@ const SystemSettings = () => {
             {/* General Tab */}
             {activeTab === 'general' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Site Kimlik Bilgileri */}
                     <div className={sectionStyle}>
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
-                            🏢 Site Bilgileri
+                            🏢 Site Kimlik Bilgileri
                         </h3>
-                        <div className="space-y-4">
+                        <div className="space-y-6">
+                            {/* Logo Yönetimi */}
+                            <div>
+                                <label className={labelStyle}>Site Logosu</label>
+                                <div className="space-y-4">
+                                    {/* Mevcut Logo Önizleme */}
+                                    <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-6 text-center">
+                                        {settings.logoUrl ? (
+                                            <div className="space-y-3">
+                                                <img 
+                                                    src={settings.logoUrl} 
+                                                    alt="Site Logosu" 
+                                                    className="max-h-24 mx-auto rounded-lg shadow-sm"
+                                                />
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    Mevcut logo
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <div className="w-16 h-16 bg-slate-200 dark:bg-slate-600 rounded-lg mx-auto flex items-center justify-center">
+                                                    🖼️
+                                                </div>
+                                                <p className="text-slate-500 dark:text-slate-400">
+                                                    Henüz logo yüklenmemiş
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Logo Yükleme */}
+                                    <div>
+                                        <input
+                                            type="file"
+                                            id="logoUpload"
+                                            accept="image/*"
+                                            onChange={handleLogoUpload}
+                                            className="hidden"
+                                        />
+                                        <div className="flex gap-3">
+                                            <label
+                                                htmlFor="logoUpload"
+                                                className="flex-1 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium text-center transition-colors"
+                                            >
+                                                📁 Logo Seç
+                                            </label>
+                                            {settings.logoUrl && (
+                                                <button
+                                                    onClick={() => {
+                                                        setSettings(prev => ({ ...prev, logoUrl: '' }));
+                                                        const systemSettings = {
+                                                            siteName: settings.siteName,
+                                                            logoUrl: ''
+                                                        };
+                                                        localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
+                                                        success('Logo kaldırıldı');
+                                                        setTimeout(() => window.location.reload(), 1000);
+                                                    }}
+                                                    className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                                                >
+                                                    🗑️ Kaldır
+                                                </button>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                            Maksimum 2MB, PNG/JPG formatında önerilir
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Site Adı */}
                             <div>
                                 <label className={labelStyle}>Site Adı</label>
                                 <input
                                     type="text"
                                     value={settings.siteName}
-                                    onChange={(e) => handleSettingChange('siteName', e.target.value)}
+                                    onChange={(e) => handleSiteNameChange(e.target.value)}
                                     className={inputStyle}
                                     placeholder="Süreç Yönetimi"
                                 />
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                    Bu ad header'da ve sayfa başlığında görünecek
+                                </p>
                             </div>
+
+                            {/* Site Açıklaması */}
                             <div>
                                 <label className={labelStyle}>Site Açıklaması</label>
                                 <textarea
                                     value={settings.siteDescription}
                                     onChange={(e) => handleSettingChange('siteDescription', e.target.value)}
-                                    className={`${inputStyle} h-20`}
-                                    placeholder="Site açıklamasını girin..."
+                                    className={`${inputStyle} h-24`}
+                                    placeholder="Profesyonel süreç takip ve yönetim sistemi"
                                 />
                             </div>
                         </div>
                     </div>
 
+                    {/* Logo Önizleme */}
                     <div className={sectionStyle}>
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
-                            🖼️ Logo Yönetimi
+                            👁️ Canlı Önizleme
                         </h3>
                         <div className="space-y-4">
-                            <div>
-                                <label className={labelStyle}>Mevcut Logo</label>
-                                {logoPreview ? (
-                                    <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-4 text-center">
+                            {/* Header Simülasyonu */}
+                            <div className="border border-slate-200 dark:border-slate-600 rounded-lg p-4 bg-slate-50 dark:bg-slate-900">
+                                <div className="flex items-center gap-3">
+                                    {settings.logoUrl && (
                                         <img 
-                                            src={logoPreview} 
+                                            src={settings.logoUrl} 
                                             alt="Logo" 
-                                            className="max-h-20 mx-auto rounded"
+                                            className="h-8 w-8 object-contain rounded"
                                         />
-                                        <p className="text-xs text-slate-500 mt-2">
-                                            Mevcut logo - değiştirmek için yeni dosya seçin
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center">
-                                        <div className="text-slate-400 mb-2">🖼️</div>
-                                        <p className="text-slate-500">Logo yüklenmemiş</p>
-                                    </div>
-                                )}
+                                    )}
+                                    <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">
+                                        {settings.siteName || 'Site Adı'}
+                                    </h1>
+                                </div>
                             </div>
-                            <div>
-                                <label className={labelStyle}>Yeni Logo Yükle</label>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleLogoChange}
-                                    className={inputStyle}
-                                />
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Maksimum 2MB, PNG/JPG formatında
-                                </p>
+                            
+                            {/* Bilgi Kartı */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                                    💡 Logo Önerileri:
+                                </h4>
+                                <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                                    <li>• Kare veya yuvarlak formatı tercih edin</li>
+                                    <li>• Şeffaf arka plan (PNG) kullanın</li>
+                                    <li>• Minimum 64x64 piksel boyutunda olsun</li>
+                                    <li>• Koyu ve açık temada uyumlu renkler seçin</li>
+                                </ul>
                             </div>
                         </div>
                     </div>

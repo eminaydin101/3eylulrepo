@@ -1,3 +1,185 @@
+/* src/index.css dosyasına eklenecek modern stiller */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Modern Gradient Backgrounds */
+@layer components {
+  .gradient-primary {
+    @apply bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700;
+  }
+  
+  .gradient-secondary {
+    @apply bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900;
+  }
+  
+  .gradient-card {
+    @apply bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900;
+  }
+  
+  /* Modern Glassmorphism Effect */
+  .glass {
+    @apply bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-white/20 dark:border-slate-700/50;
+  }
+  
+  /* Modern Shadows */
+  .shadow-modern {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .shadow-modern-dark {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Modern Button Styles */
+  .btn-primary {
+    @apply bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 dark:from-slate-700 dark:to-slate-800 dark:hover:from-slate-600 dark:hover:to-slate-700 text-slate-700 dark:text-slate-200 font-semibold px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105;
+  }
+  
+  .btn-success {
+    @apply bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+  }
+  
+  .btn-danger {
+    @apply bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+  }
+  
+  /* Modern Input Styles */
+  .input-modern {
+    @apply w-full px-4 py-3 bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 backdrop-blur-sm;
+  }
+  
+  /* Modern Card Styles */
+  .card-modern {
+    @apply gradient-card rounded-2xl shadow-modern dark:shadow-modern-dark border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  /* Smooth Transitions */
+  .transition-smooth {
+    @apply transition-all duration-500 ease-out;
+  }
+  
+  .transition-bounce {
+    @apply transition-all duration-700 ease-bounce;
+  }
+  
+  /* Modern Typography */
+  .heading-modern {
+    @apply font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent;
+  }
+  
+  /* Hover Effects */
+  .hover-lift {
+    @apply transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 hover:shadow-xl;
+  }
+  
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25;
+  }
+  
+  /* Status Colors */
+  .status-active {
+    @apply bg-gradient-to-r from-blue-500 to-cyan-500 text-white;
+  }
+  
+  .status-processing {
+    @apply bg-gradient-to-r from-amber-500 to-orange-500 text-white;
+  }
+  
+  .status-completed {
+    @apply bg-gradient-to-r from-emerald-500 to-green-500 text-white;
+  }
+  
+  .priority-high {
+    @apply bg-gradient-to-r from-red-500 to-rose-500 text-white;
+  }
+  
+  .priority-medium {
+    @apply bg-gradient-to-r from-amber-500 to-yellow-500 text-white;
+  }
+  
+  .priority-normal {
+    @apply bg-gradient-to-r from-blue-500 to-indigo-500 text-white;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #3b82f6, #6366f1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #2563eb, #4f46e5);
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.1);
+}
+
+/* Animation Keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes slide-in {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.5s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Loading Spinner Modern */
+.spinner-modern {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(59, 130, 246, 0.1);
+  border-left-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
