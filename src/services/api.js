@@ -76,24 +76,40 @@ export const updateSystemSettings = (formData) => {
 };
 
 // --- Backup (Yedekleme) Fonksiyonları ---
-export const getBackups = () => apiClient.get('/backup');
 export const createDatabaseBackup = () => apiClient.post('/backup/database');
 // YENİ: Backup import fonksiyonu
-export const importBackup = (formData) => {
-    return apiClient.post('/backup/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-    });
-};
+
 export const cleanTempFiles = () => apiClient.post('/backup/clean-temp');
 export const generateSystemReport = () => apiClient.post('/backup/system-report');
 export const clearAllLogs = () => apiClient.post('/backup/clear-logs');
 export const factoryReset = () => apiClient.post('/backup/factory-reset');
-export const downloadBackup = (fileName) => {
-    return apiClient.get(`/backup/download/${fileName}`, { 
-        responseType: 'blob',
-        headers: {
-            'Accept': 'application/octet-stream'
-        }
-    });
+
+// Backup related functions
+export const getBackups = () => axios.get('/api/backup');
+
+
+export const importBackup = (formData) => {
+  return axios.post('/api/backup/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
 };
-export const deleteBackup = (fileName) => apiClient.delete(`/backup/${fileName}`);
+
+// Backup download fonksiyonu (sadece bu eksikse ekleyin)
+export const downloadBackup = (fileName) => {
+  return axios.get(`/api/backup/download/${fileName}`, {
+    responseType: 'blob' // Binary data için
+  });
+};
+
+// Backup delete fonksiyonu (sadece bu eksikse ekleyin)  
+export const deleteBackup = (fileName) => {
+  return axios.delete(`/api/backup/${fileName}`);
+};
+
+// Category API (eğer yoksa ekleyin)
+export const getCategories = () => axios.get('/api/categories');
+export const addCategory = (data) => axios.post('/api/categories', data);
+
+// Company API (eğer yoksa ekleyin)
+export const getCompanies = () => axios.get('/api/companies');
+export const addCompany = (data) => axios.post('/api/companies', data);
