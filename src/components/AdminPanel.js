@@ -4,6 +4,9 @@ import CategoryManager from './admin/CategoryManager';
 import TableColumnManager from './admin/TableColumnManager';
 import SystemSettings from './admin/SystemSettings';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
+import React, { useState, useEffect, useRef } from 'react';
+import { useToast } from '../context/ToastContext';
+import * as api from '../services/api';
 
 const AdminPanel = ({ 
     users, 
@@ -644,35 +647,187 @@ const BackupManagement = ({
     onFactoryReset, 
     systemOperationLoading 
 }) => {
-    const [backups, setBackups] = useState([
-        { id: 1, name: 'Otomatik Yedek - 15.01.2025', date: '2025-01-15T10:30:00', size: '2.3 MB', type: 'auto' },
-        { id: 2, name: 'Manuel Yedek - 14.01.2025', date: '2025-01-14T16:45:00', size: '2.1 MB', type: 'manual' },
-        { id: 3, name: 'Otomatik Yedek - 13.01.2025', date: '2025-01-13T10:30:00', size: '2.2 MB', type: 'auto' }
-    ]);
+    const { success, error } = useToast();
+    const [backups, setBackups] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const fileInputRef = useRef();
 
-    const createBackup = () => {
-        const newBackup = {
-            id: Date.now(),
-            name: `Manuel Yedek - ${new Date().toLocaleDateString('tr-TR')}`,
-            date: new Date().toISOString(),
-            size: '2.4 MB',
-            type: 'manual'
+    // Backupları yükle
+    const loadBackups = async () => {
+        setLoading(true);
+        try {
+            const response = await api.getBackups();
+            setBackups(response.data);
+        } catch (err) {
+            error('Backup listesi yüklenemedi: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadBackups();
+    }, []);
+
+    const createBackup = async () => {
+        setLoading(true);
+        try {
+            await onDatabaseBackup();
+            await loadBackups(); // Listeyi yenile
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // YENİ: Backup import fonksiyonu
+    const handleImportBackup = async (file) => {
+        if (!file) return;
+
+        if (!file.name.endsWith('.json')) {
+            error('Sadece JSON dosyaları yüklenebilir');
+            return;
+        }
+
+        if (file.size > 50 * 1024 * 1024) { // 50MB
+            error('Dosya boyutu 50MB\'dan küçük olmalıdır');
+            return;
+        }
+
+        setImporting(true);
+        try {
+            const formData = new FormData();
+            formData.append('backup', file);
+
+            const response = await api.importBackup(formData);
+            success(response.data.message + ` (${response.data.stats.importedProcesses} süreç import edildi)`);
+            await loadBackups(); // Listeyi yenile
+        } catch (err) {
+            error('Backup import hatası: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setImporting(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const handleFileSelect = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            if (window.confirm(`"${file.name}" dosyasını import etmek istediğinizden emin misiniz? Bu işlem mevcut verileri etkileyebilir.`)) {
+                handleImportBackup(file);
+            } else {
+                event.target.value = '';
+            }
+        }
+    };
+
+    const handleDownloadBackup = async (backup) => {
+        try {
+            const response = await api.downloadBackup(backup.fileName);
+            
+            // Blob oluştur ve indir
+            const blob = new Blob([response.data]);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = backup.fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            success('Backup indiriliyor...');
+        } catch (err) {
+            error('Backup indirme hatası');
+        }
+    };
+
+    const handleDeleteBackup = async (backup) => {
+        if (window.confirm(`"${backup.name}" backup'ını silmek istediğinizden emin misiniz?`)) {
+            try {
+                await api.deleteBackup(backup.fileName);
+                success('Backup silindi');
+                await loadBackups();
+            } catch (err) {
+                error('Backup silme hatası');
+            }
+        }
+    };
+
+    const getBackupIcon = (type) => {
+        const icons = {
+            'database': '🗄️',
+            'manual': '👤',
+            'report': '📊',
+            'imported': '📥',
+            'pre-import': '⏰',
+            'factory-reset': '🔄'
         };
-        setBackups([newBackup, ...backups]);
-        onDatabaseBackup();
+        return icons[type] || '📁';
+    };
+
+    const getBackupColor = (type) => {
+        const colors = {
+            'database': 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+            'manual': 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+            'report': 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
+            'imported': 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
+            'pre-import': 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
+            'factory-reset': 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+        };
+        return colors[type] || 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600';
     };
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold heading-modern">💾 Yedekleme Yönetimi</h3>
-                <button 
-                    onClick={createBackup} 
-                    disabled={systemOperationLoading}
-                    className="btn-primary disabled:opacity-50"
-                >
-                    💾 Yeni Yedek Oluştur
-                </button>
+                <div className="flex items-center gap-3">
+                    {/* YENİ: Import Butonu */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                    />
+                    <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={importing || systemOperationLoading}
+                        className="btn-secondary disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {importing ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                <span>İçe Aktarılıyor...</span>
+                            </>
+                        ) : (
+                            <>
+                                <span>📥</span>
+                                <span>Backup İçe Aktar</span>
+                            </>
+                        )}
+                    </button>
+                    
+                    <button 
+                        onClick={createBackup} 
+                        disabled={loading || systemOperationLoading}
+                        className="btn-primary disabled:opacity-50"
+                    >
+                        {loading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                Oluşturuluyor...
+                            </>
+                        ) : (
+                            <>
+                                💾 Yeni Yedek Oluştur
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             <div className="card-modern p-6">
@@ -710,43 +865,87 @@ const BackupManagement = ({
             </div>
 
             <div className="card-modern p-6">
-                <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
-                    📋 Mevcut Yedekler
-                </h4>
-                <div className="space-y-3">
-                    {backups.map(backup => (
-                        <div key={backup.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-xl hover-lift">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl">
-                                    {backup.type === 'auto' ? '🤖' : '👤'}
-                                </span>
-                                <div>
-                                    <h5 className="font-medium text-slate-800 dark:text-slate-200">
-                                        {backup.name}
-                                    </h5>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                        {new Date(backup.date).toLocaleString('tr-TR', {
-                                            timeZone: 'Europe/Istanbul'
-                                        })} • {backup.size}
-                                    </p>
+                <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                        📋 Mevcut Yedekler ({backups.length})
+                    </h4>
+                    <button
+                        onClick={loadBackups}
+                        disabled={loading}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                        {loading ? '🔄 Yükleniyor...' : '🔄 Yenile'}
+                    </button>
+                </div>
+                
+                {loading && backups.length === 0 ? (
+                    <div className="text-center py-8">
+                        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-slate-600 dark:text-slate-400">Yedekler yükleniyor...</p>
+                    </div>
+                ) : backups.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                        <div className="text-4xl mb-2">📦</div>
+                        <p className="font-medium">Henüz yedek bulunmuyor</p>
+                        <p className="text-sm">İlk yedeğinizi oluşturun veya mevcut bir yedeği import edin</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {backups.map(backup => (
+                            <div key={backup.id} className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-md ${getBackupColor(backup.type)}`}>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl">
+                                        {getBackupIcon(backup.type)}
+                                    </span>
+                                    <div>
+                                        <h5 className="font-medium text-slate-800 dark:text-slate-200">
+                                            {backup.name}
+                                        </h5>
+                                        <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                                            <span>{new Date(backup.date).toLocaleString('tr-TR', {
+                                                timeZone: 'Europe/Istanbul'
+                                            })}</span>
+                                            <span>•</span>
+                                            <span>{backup.size}</span>
+                                            <span className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-xs font-medium capitalize">
+                                                {backup.type}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => handleDownloadBackup(backup)}
+                                        className="btn-secondary text-sm py-2 px-3"
+                                        title="İndir"
+                                    >
+                                        📥 İndir
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteBackup(backup)}
+                                        className="btn-danger text-sm py-2 px-3"
+                                        title="Sil"
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button className="btn-secondary text-sm">
-                                    📥 İndir
-                                </button>
-                                <button className="btn-primary text-sm">
-                                    🔄 Geri Yükle
-                                </button>
-                                <button 
-                                    onClick={() => setBackups(backups.filter(b => b.id !== backup.id))}
-                                    className="btn-danger text-sm"
-                                >
-                                    🗑️
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Import Talimatları */}
+            <div className="card-modern p-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                <h4 className="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-3">
+                    📥 Backup İçe Aktarma Kılavuzu
+                </h4>
+                <div className="text-sm text-blue-700 dark:text-blue-400 space-y-2">
+                    <p><strong>Desteklenen Format:</strong> Sadece JSON dosyaları (.json)</p>
+                    <p><strong>Maksimum Boyut:</strong> 50 MB</p>
+                    <p><strong>İçe Aktarılan Veriler:</strong> Süreçler ve süreç atamaları</p>
+                    <p><strong>Güvenlik:</strong> Import işlemi öncesinde mevcut verilerinizin otomatik yedeği alınır</p>
+                    <p><strong>Çakışma Durumu:</strong> Aynı ID'ye sahip süreçler güncellenir, yeni süreçler eklenir</p>
                 </div>
             </div>
 
@@ -815,7 +1014,12 @@ const BackupManagement = ({
                     <div className="text-3xl mb-2">💾</div>
                     <h5 className="font-semibold text-slate-800 dark:text-slate-200">Toplam Boyut</h5>
                     <p className="text-2xl font-bold text-green-600">
-                        {(backups.reduce((total, backup) => total + parseFloat(backup.size), 0)).toFixed(1)} MB
+                        {backups.length > 0 ? (
+                            backups.reduce((total, backup) => {
+                                const size = parseFloat(backup.size.replace(' MB', ''));
+                                return total + (isNaN(size) ? 0 : size);
+                            }, 0).toFixed(1)
+                        ) : '0.0'} MB
                     </p>
                 </div>
                 <div className="card-modern p-6 text-center">
@@ -829,5 +1033,7 @@ const BackupManagement = ({
         </div>
     );
 };
+
+export default BackupManagement;
 
 export default AdminPanel;

@@ -1,12 +1,36 @@
 const fs = require('fs');
 const path = require('path');
 const { getDb, getMsgDb } = require('../config/database');
+const multer = require('multer');
 
 // Backup klasörünü oluştur
 const backupDir = path.join(__dirname, '../../backup');
 if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
 }
+
+// Multer configuration for backup file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, backupDir);
+    },
+    filename: (req, file, cb) => {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        cb(null, `imported_backup_${timestamp}_${file.originalname}`);
+    }
+});
+
+const upload = multer({ 
+    storage,
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Sadece JSON dosyaları yüklenebilir'));
+        }
+    }
+});
 
 // Veritabanı yedeği alma
 exports.createDatabaseBackup = async (req, res) => {
@@ -71,6 +95,124 @@ exports.createDatabaseBackup = async (req, res) => {
     } catch (error) {
         console.error('Database backup error:', error);
         res.status(500).json({ message: 'Veritabanı yedeği oluşturulamadı' });
+    }
+};
+
+// YENİ: Backup import fonksiyonu
+exports.importBackup = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'Backup dosyası yüklenmedi' });
+        }
+
+        const backupPath = req.file.path;
+        const backupData = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
+
+        // Backup dosyasının formatını kontrol et
+        if (!backupData.tables || !backupData.version) {
+            return res.status(400).json({ message: 'Geçersiz backup dosyası formatı' });
+        }
+
+        const db = await getDb();
+        const msgDb = await getMsgDb();
+
+        // İsteğe bağlı: Mevcut verilerin yedeğini al
+        const currentTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const preImportBackupPath = path.join(backupDir, `pre_import_backup_${currentTimestamp}.json`);
+        
+        // Mevcut verileri yedekle (import öncesi)
+        const currentUsers = await db.all('SELECT * FROM users');
+        const currentProcesses = await db.all('SELECT * FROM processes');
+        const currentLogs = await db.all('SELECT * FROM logs');
+        
+        const preImportBackup = {
+            timestamp: new Date().toISOString(),
+            version: '1.0',
+            type: 'pre-import-backup',
+            tables: {
+                users: currentUsers,
+                processes: currentProcesses,
+                logs: currentLogs
+            }
+        };
+        
+        fs.writeFileSync(preImportBackupPath, JSON.stringify(preImportBackup, null, 2));
+
+        // Import işlemi başlat - sadece belirli tabloları import et
+        let importedCount = 0;
+
+        // Processes tablosunu import et
+        if (backupData.tables.processes && Array.isArray(backupData.tables.processes)) {
+            for (const process of backupData.tables.processes) {
+                // Mevcut ID'yi kontrol et, varsa güncelle, yoksa ekle
+                const existing = await db.get('SELECT id FROM processes WHERE id = ?', process.id);
+                if (existing) {
+                    await db.run(`UPDATE processes SET 
+                        firma = ?, konum = ?, baslik = ?, surec = ?, mevcutDurum = ?,
+                        baslangicTarihi = ?, sonrakiKontrolTarihi = ?, tamamlanmaTarihi = ?,
+                        kategori = ?, altKategori = ?, oncelikDuzeyi = ?, durum = ?,
+                        updatedAt = ?
+                        WHERE id = ?`,
+                        process.firma, process.konum, process.baslik, process.surec,
+                        process.mevcutDurum, process.baslangicTarihi, process.sonrakiKontrolTarihi,
+                        process.tamamlanmaTarihi, process.kategori, process.altKategori,
+                        process.oncelikDuzeyi, process.durum, new Date().toISOString(), process.id
+                    );
+                } else {
+                    await db.run(`INSERT INTO processes (
+                        id, firma, konum, baslik, surec, mevcutDurum, baslangicTarihi,
+                        sonrakiKontrolTarihi, tamamlanmaTarihi, kategori, altKategori,
+                        oncelikDuzeyi, durum, createdAt, updatedAt
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        process.id, process.firma, process.konum, process.baslik, process.surec,
+                        process.mevcutDurum, process.baslangicTarihi, process.sonrakiKontrolTarihi,
+                        process.tamamlanmaTarihi, process.kategori, process.altKategori,
+                        process.oncelikDuzeyi, process.durum, 
+                        process.createdAt || new Date().toISOString(),
+                        new Date().toISOString()
+                    );
+                }
+                importedCount++;
+            }
+        }
+
+        // Process assignments import et
+        if (backupData.tables.process_assignments && Array.isArray(backupData.tables.process_assignments)) {
+            // Önce mevcut assignments'ları temizle (imported processes için)
+            const importedProcessIds = backupData.tables.processes.map(p => p.id);
+            for (const processId of importedProcessIds) {
+                await db.run('DELETE FROM process_assignments WHERE processId = ?', processId);
+            }
+            
+            // Yeni assignments'ları ekle
+            for (const assignment of backupData.tables.process_assignments) {
+                await db.run(
+                    'INSERT OR IGNORE INTO process_assignments (processId, userId) VALUES (?, ?)',
+                    assignment.processId, assignment.userId
+                );
+            }
+        }
+
+        // Log entry oluştur
+        await db.run(`INSERT INTO logs (userId, userName, processId, field, oldValue, newValue) 
+                      VALUES (?, ?, ?, ?, ?, ?)`,
+            req.user?.id || 1, req.user?.name || "Sistem", 'BACKUP_IMPORT', 
+            'Backup Import', '', `${importedCount} süreç import edildi`
+        );
+
+        res.status(200).json({
+            message: `Backup başarıyla import edildi`,
+            stats: {
+                importedProcesses: importedCount,
+                preImportBackup: `pre_import_backup_${currentTimestamp}.json`
+            }
+        });
+
+    } catch (error) {
+        console.error('Backup import error:', error);
+        res.status(500).json({ 
+            message: 'Backup import edilemedi: ' + error.message 
+        });
     }
 };
 
@@ -282,7 +424,7 @@ exports.factoryReset = async (req, res) => {
     }
 };
 
-// Backup listesini getirme
+// Backup listesini getirme - GÜNCELLENMIŞ
 exports.getBackups = async (req, res) => {
     try {
         const backups = [];
@@ -303,6 +445,15 @@ exports.getBackups = async (req, res) => {
                 } else if (file.includes('system_report')) {
                     type = 'report';
                     name = `Sistem Raporu - ${stats.mtime.toLocaleDateString('tr-TR')}`;
+                } else if (file.includes('imported_backup')) {
+                    type = 'imported';
+                    name = `İçe Aktarılan Yedek - ${stats.mtime.toLocaleDateString('tr-TR')}`;
+                } else if (file.includes('pre_import_backup')) {
+                    type = 'pre-import';
+                    name = `Import Öncesi Yedek - ${stats.mtime.toLocaleDateString('tr-TR')}`;
+                } else if (file.includes('factory_reset_backup')) {
+                    type = 'factory-reset';
+                    name = `Fabrika Sıfırlama Yedeği - ${stats.mtime.toLocaleDateString('tr-TR')}`;
                 }
                 
                 backups.push({
@@ -364,3 +515,6 @@ exports.deleteBackup = async (req, res) => {
         res.status(500).json({ message: 'Backup silinemedi' });
     }
 };
+
+// Export upload middleware
+exports.uploadBackup = upload.single('backup');

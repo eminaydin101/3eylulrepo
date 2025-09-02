@@ -88,6 +88,18 @@ const Header = ({ onTabChange, activeTab, onToggleSidebar, onLogout, theme, hand
                         <span>📋</span>
                         <span>Tüm Süreçler</span>
                     </button>
+                    {/* YENİ: Süreçlerim Butonu */}
+                    <button 
+                        onClick={() => onTabChange('myProcesses')} 
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                            activeTab === 'myProcesses' 
+                                ? 'bg-green-600 text-white shadow-sm' 
+                                : 'text-slate-600 dark:text-slate-300 hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400'
+                        }`}
+                    >
+                        <span>👤</span>
+                        <span>Süreçlerim</span>
+                    </button>
                     {/* Admin Panel Butonu - Desktop */}
                     {isAdmin && (
                         <button 

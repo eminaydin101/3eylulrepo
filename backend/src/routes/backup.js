@@ -20,6 +20,9 @@ router.get('/', requireAdmin, backupController.getBackups);
 // Veritabanı yedeği oluştur
 router.post('/database', requireAdmin, backupController.createDatabaseBackup);
 
+// YENİ: Backup import et
+router.post('/import', requireAdmin, backupController.uploadBackup, backupController.importBackup);
+
 // Geçici dosyaları temizle
 router.post('/clean-temp', requireAdmin, backupController.cleanTempFiles);
 
