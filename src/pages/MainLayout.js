@@ -69,8 +69,24 @@ const MainLayout = () => {
     const [systemOperationLoading, setSystemOperationLoading] = useState(false);
 
     // Dashboard'dan gelen filtre uygulama
+    // Dashboard'dan gelen filtre uygulama - DÜZELTME
     const handleDashboardFilterApply = (filterType, filterValue) => {
+        console.log('Dashboard filter:', filterType, filterValue); // Debug için
         setActiveTab('processTable');
+        
+        // Önce tüm filtreleri sıfırla
+        const resetFilters = {
+            searchTerm: '', 
+            firma: 'all', 
+            kategori: 'all', 
+            sorumlu: 'all',
+            durum: 'all',
+            oncelik: 'all',
+            startDate: '',
+            endDate: '',
+            controlStartDate: '',
+            controlEndDate: ''
+        };
         
         const filterMappings = {
             'sorumlu': 'sorumlu',
@@ -82,37 +98,57 @@ const MainLayout = () => {
         };
 
         const mappedFilterType = filterMappings[filterType];
-        if (mappedFilterType) {
-            if (filterType === 'processId') {
-                setFilters(prev => ({ 
-                    ...prev, 
-                    searchTerm: filterValue 
-                }));
-            } else if (filterType === 'overdue') {
-                const today = new Date().toISOString().slice(0, 10);
-                setFilters(prev => ({ 
-                    ...prev, 
-                    controlEndDate: today,
-                    durum: 'all'
-                }));
-                setProcessView('active');
-            } else if (filterType === 'completed_this_week') {
-                const today = new Date();
-                const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 1));
-                setFilters(prev => ({ 
-                    ...prev, 
-                    startDate: startOfWeek.toISOString().slice(0, 10),
-                    endDate: new Date().toISOString().slice(0, 10),
-                    durum: 'Tamamlandı'
-                }));
-                setProcessView('completed');
+        
+        if (filterType === 'processId') {
+            setFilters({ ...resetFilters, searchTerm: filterValue });
+            setProcessView('active'); // ID araması için aktif tab
+        } else if (filterType === 'overdue') {
+            const today = new Date().toISOString().slice(0, 10);
+            setFilters({ 
+                ...resetFilters, 
+                controlEndDate: today,
+                durum: 'all' // Geciken süreçler aktif olmalı
+            });
+            setProcessView('active');
+        } else if (filterType === 'completed_this_week') {
+            const today = new Date();
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1)); // Pazartesi
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6); // Pazar
+            
+            setFilters({ 
+                ...resetFilters, 
+                startDate: startOfWeek.toISOString().slice(0, 10),
+                endDate: endOfWeek.toISOString().slice(0, 10),
+                durum: 'Tamamlandı'
+            });
+            setProcessView('completed'); // Tamamlanan tab'ına geç
+        } else if (mappedFilterType) {
+            const newFilters = { ...resetFilters, [mappedFilterType]: filterValue };
+            setFilters(newFilters);
+            
+            // Durum filtresine göre tab belirleme
+            if (filterType === 'durum') {
+                if (filterValue === 'Tamamlandı') {
+                    setProcessView('completed');
+                } else {
+                    setProcessView('active');
+                }
             } else {
-                setFilters(prev => ({ 
-                    ...prev, 
-                    [mappedFilterType]: filterValue 
-                }));
+                // Diğer filtreler için mevcut tab'da kal veya aktif'e geç
+                setProcessView('active');
             }
+        } else {
+            console.warn('Bilinmeyen filtre tipi:', filterType);
+            setFilters(resetFilters);
+            setProcessView('active');
         }
+        
+        // Bir süre sonra filtrelerin uygulandığını göster
+        setTimeout(() => {
+            success(`${filterType} filtesi uygulandı`);
+        }, 100);
     };
 
     const handleFilterChange = (filterName, value) => {

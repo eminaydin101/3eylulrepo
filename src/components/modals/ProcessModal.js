@@ -49,6 +49,7 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
     });
 
     const [formData, setFormData] = useState(getEmptyForm());
+    const [previousCategory, setPreviousCategory] = useState(''); // Kategori değişikliği için
 
     // Dosyaları yükle
     const loadProcessFiles = async (processId) => {
@@ -70,10 +71,13 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
         if (isOpen) {
             if (isEditMode && initialData) {
                 setFormData(initialData);
+                setPreviousCategory(initialData.kategori);
                 loadProcessFiles(initialData.id);
                 setActiveTab('form');
             } else {
-                setFormData(getEmptyForm());
+                const emptyForm = getEmptyForm();
+                setFormData(emptyForm);
+                setPreviousCategory('');
                 setProcessFiles([]);
                 setActiveTab('form');
             }
@@ -92,7 +96,17 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
 
     if (!isOpen) return null;
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        
+        // Kategori değiştiğinde alt kategoriyi sıfırla
+        if (name === 'kategori' && value !== previousCategory) {
+            setFormData(prev => ({ ...prev, [name]: value, altKategori: '' }));
+            setPreviousCategory(value);
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
     
     const handleSorumlularChange = (e) => {
         const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
@@ -100,7 +114,24 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
     };
 
     const handleSubmit = (e) => { 
-        e.preventDefault(); 
+        e.preventDefault();
+        
+        // Form validation
+        if (!formData.firma || !formData.konum || !formData.baslik || !formData.surec || !formData.kategori) {
+            error('Zorunlu alanları doldurun: Firma, Konum, Başlık, Süreç Detayı, Kategori');
+            return;
+        }
+
+        // Durum tamamlandı ise tamamlanma tarihi zorunlu
+        if (formData.durum === 'Tamamlandı' && !formData.tamamlanmaTarihi) {
+            setFormData(prev => ({ ...prev, tamamlanmaTarihi: new Date().toISOString().slice(0, 10) }));
+        }
+
+        // Durum tamamlandı değilse tamamlanma tarihini sıfırla
+        if (formData.durum !== 'Tamamlandı' && formData.tamamlanmaTarihi) {
+            setFormData(prev => ({ ...prev, tamamlanmaTarihi: '' }));
+        }
+
         onSubmit(formData); 
     };
 
@@ -301,7 +332,11 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
                                         ref={fieldRefs.firma}
                                         name="firma" 
                                         value={formData.firma} 
-                                        onChange={handleChange} 
+                                        onChange={(e) => {
+                                            handleChange(e);
+                                            // Firma değiştiğinde konumu da sıfırla
+                                            setFormData(prev => ({ ...prev, konum: '' }));
+                                        }}
                                         className={`${inputStyle} ${focusField === 'firma' ? 'ring-2 ring-blue-500' : ''}`} 
                                         required
                                     >
@@ -329,6 +364,9 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
                                             <option key={konum} value={konum}>{konum}</option>
                                         ))}
                                     </select>
+                                    {!formData.firma && (
+                                        <p className="text-xs text-slate-500 mt-1">Önce firma seçin</p>
+                                    )}
                                 </div>
 
                                 {/* Başlık */}
@@ -396,6 +434,9 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
                                             <option key={altKategori} value={altKategori}>{altKategori}</option>
                                         ))}
                                     </select>
+                                    {!formData.kategori && (
+                                        <p className="text-xs text-slate-500 mt-1">Önce kategori seçin</p>
+                                    )}
                                 </div>
 
                                 {/* Durum */}
@@ -507,11 +548,20 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
 
                     {/* Files Tab */}
                     {activeTab === 'files' && isEditMode && (
-                        <FileUpload 
-                            processId={formData.id} 
-                            files={processFiles} 
-                            onFilesChange={handleFilesChange}
-                        />
+                        <div>
+                            {loadingFiles ? (
+                                <div className="text-center py-8">
+                                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                    <p className="text-slate-600 dark:text-slate-400">Dosyalar yükleniyor...</p>
+                                </div>
+                            ) : (
+                                <FileUpload 
+                                    processId={formData.id} 
+                                    files={processFiles} 
+                                    onFilesChange={handleFilesChange}
+                                />
+                            )}
+                        </div>
                     )}
 
                     {/* History Tab */}

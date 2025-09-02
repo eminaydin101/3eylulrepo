@@ -4,7 +4,16 @@ import { useAuth } from './AuthContext';
 import { io } from 'socket.io-client';
 
 const DataContext = createContext(null);
-const SOCKET_URL = 'http://localhost:3001';
+
+// Socket URL'ini environment'a göre ayarla
+const getSocketUrl = () => {
+    if (process.env.NODE_ENV === 'production') {
+        return window.location.origin; // Production'da aynı domain
+    }
+    return process.env.REACT_APP_API_URL || 'http://localhost:3001';
+};
+
+const SOCKET_URL = getSocketUrl();
 
 export const useData = () => useContext(DataContext);
 
@@ -30,7 +39,8 @@ export const DataProvider = ({ children }) => {
             setData(prev => ({ ...prev, ...response.data }));
         } catch (err) {
             console.error("Uygulama verileri alınırken hata oluştu:", err);
-            // Toast yerine console.error kullanıyoruz
+            // Hata durumunda da loading'i false yap
+            setData(prev => ({ ...prev, processes: [], users: [], firmalar: {}, kategoriler: {}, logs: [], messages: [], onlineUsers: [] }));
         } finally {
             setLoading(false);
         }
@@ -39,30 +49,60 @@ export const DataProvider = ({ children }) => {
     // Socket bağlantısını kurma ve olayları dinleme
     useEffect(() => {
         if (user) {
-            const newSocket = io(SOCKET_URL);
-            setSocket(newSocket);
+            let newSocket;
+            try {
+                newSocket = io(SOCKET_URL, {
+                    timeout: 20000,
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 5000
+                });
+                setSocket(newSocket);
 
-            newSocket.emit('user_online', user);
+                newSocket.emit('user_online', user);
 
-            newSocket.on('update_online_users', (onlineUsers) => {
-                setData(prev => ({ ...prev, onlineUsers }));
-            });
+                newSocket.on('connect', () => {
+                    console.log('Socket bağlantısı kuruldu');
+                });
 
-            newSocket.on('receive_message', (newMessage) => {
-                setData(prev => ({ ...prev, messages: [...prev.messages, newMessage] }));
-                
-                // Okunmamış mesaj sayısını güncelle
-                if (newMessage.senderId !== user.id) {
-                    setUnreadCounts(prev => ({
-                        ...prev,
-                        [newMessage.senderId]: (prev[newMessage.senderId] || 0) + 1
-                    }));
-                }
-            });
+                newSocket.on('disconnect', () => {
+                    console.log('Socket bağlantısı kesildi');
+                });
 
-            newSocket.on('data_changed', fetchData);
+                newSocket.on('connect_error', (error) => {
+                    console.error('Socket bağlantı hatası:', error);
+                });
 
-            return () => newSocket.disconnect();
+                newSocket.on('update_online_users', (onlineUsers) => {
+                    setData(prev => ({ ...prev, onlineUsers }));
+                });
+
+                newSocket.on('receive_message', (newMessage) => {
+                    setData(prev => ({ ...prev, messages: [...prev.messages, newMessage] }));
+                    
+                    // Okunmamış mesaj sayısını güncelle
+                    if (newMessage.senderId !== user.id) {
+                        setUnreadCounts(prev => ({
+                            ...prev,
+                            [newMessage.senderId]: (prev[newMessage.senderId] || 0) + 1
+                        }));
+                    }
+                });
+
+                newSocket.on('data_changed', () => {
+                    console.log('Veri değişikliği algılandı, yeniden yükleniyor...');
+                    fetchData();
+                });
+
+                return () => {
+                    if (newSocket) {
+                        newSocket.disconnect();
+                    }
+                };
+            } catch (error) {
+                console.error('Socket başlatma hatası:', error);
+                setSocket(null);
+            }
         }
     }, [user, fetchData]);
 
