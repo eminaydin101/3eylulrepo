@@ -4,13 +4,13 @@ import CategoryManager from './admin/CategoryManager';
 import TableColumnManager from './admin/TableColumnManager';
 import SystemSettings from './admin/SystemSettings';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
-import React, { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
 
 const AdminPanel = ({ 
     users, 
     firmalar, 
     kategoriler, 
+    processes,
+    logs,
     openUserModal, 
     openNewUserModal, 
     requestUserDelete,
@@ -50,7 +50,7 @@ const AdminPanel = ({
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Toplam Kullanıcı</p>
-                        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{users.length}</p>
+                        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{users?.length || 0}</p>
                     </div>
                     <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
                         <span className="text-2xl">👥</span>
@@ -59,7 +59,7 @@ const AdminPanel = ({
                 <div className="mt-4">
                     <div className="flex items-center text-sm">
                         <span className="text-green-600 dark:text-green-400">
-                            +{users.filter(u => u.status === 'Active').length} aktif
+                            +{users?.filter(u => u.status === 'Active').length || 0} aktif
                         </span>
                     </div>
                 </div>
@@ -69,7 +69,7 @@ const AdminPanel = ({
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Toplam Kategori</p>
-                        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{Object.keys(kategoriler).length}</p>
+                        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{Object.keys(kategoriler || {}).length}</p>
                     </div>
                     <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
                         <span className="text-2xl">📂</span>
@@ -78,7 +78,7 @@ const AdminPanel = ({
                 <div className="mt-4">
                     <div className="flex items-center text-sm">
                         <span className="text-green-600 dark:text-green-400">
-                            {Object.values(kategoriler).flat().length} alt kategori
+                            {Object.values(kategoriler || {}).flat().length} alt kategori
                         </span>
                     </div>
                 </div>
@@ -88,7 +88,7 @@ const AdminPanel = ({
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Toplam Firma</p>
-                        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{Object.keys(firmalar).length}</p>
+                        <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{Object.keys(firmalar || {}).length}</p>
                     </div>
                     <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
                         <span className="text-2xl">🏢</span>
@@ -97,7 +97,7 @@ const AdminPanel = ({
                 <div className="mt-4">
                     <div className="flex items-center text-sm">
                         <span className="text-green-600 dark:text-green-400">
-                            {Object.values(firmalar).flat().length} lokasyon
+                            {Object.values(firmalar || {}).flat().length} lokasyon
                         </span>
                     </div>
                 </div>
@@ -174,36 +174,15 @@ const AdminPanel = ({
                     )}
 
                     {activeSection === 'statistics' && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">
-                                📈 Sistem İstatistikleri
-                            </h3>
-                            <p className="text-slate-600 dark:text-slate-400">
-                                Detaylı sistem istatistikleri yakında gelecek...
-                            </p>
-                        </div>
+                        <AdminStatistics processes={processes} users={users} logs={logs} />
                     )}
 
                     {activeSection === 'logs' && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">
-                                📝 Sistem Logları
-                            </h3>
-                            <p className="text-slate-600 dark:text-slate-400">
-                                Sistem log görüntüleyici yakında gelecek...
-                            </p>
-                        </div>
+                        <SystemLogs logs={logs} />
                     )}
 
                     {activeSection === 'backup' && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">
-                                💾 Yedekleme Yönetimi
-                            </h3>
-                            <p className="text-slate-600 dark:text-slate-400">
-                                Yedekleme özellikleri yakında gelecek...
-                            </p>
-                        </div>
+                        <BackupManagement />
                     )}
                 </div>
             </div>
@@ -211,28 +190,25 @@ const AdminPanel = ({
     );
 };
 
-export default AdminPanel;
+// Admin Statistics Component
 const AdminStatistics = ({ processes, users, logs }) => {
-    const [dateRange, setDateRange] = useState('7'); // 7, 30, 90 günlük
+    const [dateRange, setDateRange] = useState('7');
 
-    // İstatistik hesaplamaları
-    const totalProcesses = processes.length;
-    const activeProcesses = processes.filter(p => p.durum !== 'Tamamlandı').length;
-    const completedProcesses = processes.filter(p => p.durum === 'Tamamlandı').length;
-    const overdueProcesses = processes.filter(p => 
+    const totalProcesses = processes?.length || 0;
+    const activeProcesses = processes?.filter(p => p.durum !== 'Tamamlandı').length || 0;
+    const completedProcesses = processes?.filter(p => p.durum === 'Tamamlandı').length || 0;
+    const overdueProcesses = processes?.filter(p => 
         p.sonrakiKontrolTarihi && new Date(p.sonrakiKontrolTarihi) < new Date() && p.durum !== 'Tamamlandı'
-    ).length;
+    ).length || 0;
 
-    // Bu ay tamamlanan süreçler
     const thisMonth = new Date().getMonth();
     const thisYear = new Date().getFullYear();
-    const completedThisMonth = processes.filter(p => {
+    const completedThisMonth = processes?.filter(p => {
         if (!p.tamamlanmaTarihi) return false;
         const date = new Date(p.tamamlanmaTarihi);
         return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
-    }).length;
+    }).length || 0;
 
-    // Son 30 günlük aktivite verisi
     const getLast30DaysData = () => {
         const data = [];
         for (let i = 29; i >= 0; i--) {
@@ -240,14 +216,14 @@ const AdminStatistics = ({ processes, users, logs }) => {
             date.setDate(date.getDate() - i);
             const dateString = date.toISOString().split('T')[0];
             
-            const dayLogs = logs.filter(log => {
+            const dayLogs = logs?.filter(log => {
                 const logDate = new Date(log.timestamp).toISOString().split('T')[0];
                 return logDate === dateString;
-            }).length;
+            }).length || 0;
 
-            const dayCompleted = processes.filter(p => 
+            const dayCompleted = processes?.filter(p => 
                 p.tamamlanmaTarihi === dateString
-            ).length;
+            ).length || 0;
 
             data.push({
                 date: date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }),
@@ -258,30 +234,32 @@ const AdminStatistics = ({ processes, users, logs }) => {
         return data;
     };
 
-    // Kullanıcı başına süreç dağılımı
     const getUserProcessData = () => {
+        if (!users || !processes) return [];
         return users.map(user => {
             const userProcesses = processes.filter(p => 
                 p.sorumlular && p.sorumlular.includes(user.fullName)
             );
             return {
-                name: user.fullName.split(' ')[0], // İlk isim
+                name: user.fullName.split(' ')[0],
                 aktif: userProcesses.filter(p => p.durum !== 'Tamamlandı').length,
                 tamamlanan: userProcesses.filter(p => p.durum === 'Tamamlandı').length,
                 toplam: userProcesses.length
             };
-        }).filter(user => user.toplam > 0).slice(0, 10); // Top 10
+        }).filter(user => user.toplam > 0).slice(0, 10);
     };
 
-    // Öncelik dağılımı
-    const getPriorityData = () => [
-        { name: 'Yüksek', value: processes.filter(p => p.oncelikDuzeyi === 'Yüksek').length, color: '#ef4444' },
-        { name: 'Orta', value: processes.filter(p => p.oncelikDuzeyi === 'Orta').length, color: '#f59e0b' },
-        { name: 'Normal', value: processes.filter(p => p.oncelikDuzeyi === 'Normal').length, color: '#3b82f6' }
-    ];
+    const getPriorityData = () => {
+        if (!processes) return [];
+        return [
+            { name: 'Yüksek', value: processes.filter(p => p.oncelikDuzeyi === 'Yüksek').length, color: '#ef4444' },
+            { name: 'Orta', value: processes.filter(p => p.oncelikDuzeyi === 'Orta').length, color: '#f59e0b' },
+            { name: 'Normal', value: processes.filter(p => p.oncelikDuzeyi === 'Normal').length, color: '#3b82f6' }
+        ];
+    };
 
-    // Kategori dağılımı
     const getCategoryData = () => {
+        if (!processes) return [];
         const categories = {};
         processes.forEach(p => {
             categories[p.kategori] = (categories[p.kategori] || 0) + 1;
@@ -323,7 +301,6 @@ const AdminStatistics = ({ processes, users, logs }) => {
                 </select>
             </div>
 
-            {/* Ana İstatistik Kartları */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
                     title="Toplam Süreç" 
@@ -355,9 +332,7 @@ const AdminStatistics = ({ processes, users, logs }) => {
                 />
             </div>
 
-            {/* Grafikler */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Aktivite Grafiği */}
                 <div className="card-modern p-6">
                     <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
                         📈 Son 30 Günlük Aktivite
@@ -391,7 +366,6 @@ const AdminStatistics = ({ processes, users, logs }) => {
                     </ResponsiveContainer>
                 </div>
 
-                {/* Öncelik Dağılımı */}
                 <div className="card-modern p-6">
                     <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
                         ⚡ Öncelik Dağılımı
@@ -416,7 +390,6 @@ const AdminStatistics = ({ processes, users, logs }) => {
                 </div>
             </div>
 
-            {/* Kullanıcı Performansı */}
             <div className="card-modern p-6">
                 <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
                     👥 Kullanıcı Performansı (Top 10)
@@ -440,7 +413,6 @@ const AdminStatistics = ({ processes, users, logs }) => {
                 </ResponsiveContainer>
             </div>
 
-            {/* Kategori Dağılımı */}
             <div className="card-modern p-6">
                 <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
                     📂 Kategori Dağılımı
@@ -472,7 +444,7 @@ const SystemLogs = ({ logs }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
 
-    const filteredLogs = logs.filter(log => {
+    const filteredLogs = (logs || []).filter(log => {
         const matchesFilter = filter === 'all' || log.field === filter;
         const matchesSearch = !searchTerm || 
             log.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -481,7 +453,7 @@ const SystemLogs = ({ logs }) => {
         const matchesDate = !dateFilter || log.timestamp.startsWith(dateFilter);
         
         return matchesFilter && matchesSearch && matchesDate;
-    }).slice(0, 100); // Son 100 log
+    }).slice(0, 100);
 
     const getLogIcon = (field) => {
         const icons = {
@@ -522,7 +494,6 @@ const SystemLogs = ({ logs }) => {
                 </div>
             </div>
 
-            {/* Filtreler */}
             <div className="card-modern p-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
@@ -579,7 +550,6 @@ const SystemLogs = ({ logs }) => {
                 </div>
             </div>
 
-            {/* Log Listesi */}
             <div className="card-modern overflow-hidden">
                 <div className="max-h-96 overflow-y-auto">
                     {filteredLogs.length > 0 ? (
@@ -673,7 +643,6 @@ const BackupManagement = () => {
                 </button>
             </div>
 
-            {/* Yedekleme Ayarları */}
             <div className="card-modern p-6">
                 <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
                     ⚙️ Otomatik Yedekleme Ayarları
@@ -708,7 +677,6 @@ const BackupManagement = () => {
                 </div>
             </div>
 
-            {/* Mevcut Yedekler */}
             <div className="card-modern p-6">
                 <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
                     📋 Mevcut Yedekler
@@ -747,7 +715,6 @@ const BackupManagement = () => {
                 </div>
             </div>
 
-            {/* Yedekleme İstatistikleri */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="card-modern p-6 text-center">
                     <div className="text-3xl mb-2">📊</div>
@@ -769,4 +736,4 @@ const BackupManagement = () => {
     );
 };
 
-export { AdminStatistics, SystemLogs, BackupManagement };
+export default AdminPanel;
