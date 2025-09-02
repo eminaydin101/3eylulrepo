@@ -25,10 +25,26 @@ const getResponsibleEmails = async (db, processId) => {
 };
 
 // Benzersiz ID oluşturma fonksiyonu
+// Benzersiz ID oluşturma fonksiyonu - REGEXP sorunu düzeltildi
 const generateProcessId = async (db) => {
-    const result = await db.get('SELECT MAX(CAST(id AS INTEGER)) as maxId FROM processes WHERE id REGEXP "^[0-9]+$"');
-    const nextId = (result.maxId || 0) + 1;
-    return String(nextId).padStart(6, '0');
+    try {
+        // Tüm ID'leri al ve numerik olanları filtrele
+        const allProcesses = await db.all('SELECT id FROM processes');
+        const numericIds = allProcesses
+            .map(p => p.id)
+            .filter(id => /^\d+$/.test(id)) // JavaScript ile regex kontrolü
+            .map(id => parseInt(id, 10))
+            .filter(id => !isNaN(id));
+        
+        const maxId = numericIds.length > 0 ? Math.max(...numericIds) : 0;
+        const nextId = maxId + 1;
+        
+        return String(nextId).padStart(6, '0');
+    } catch (error) {
+        console.error('ID oluşturma hatası:', error);
+        // Fallback: timestamp tabanlı ID
+        return Date.now().toString();
+    }
 };
 
 exports.getInitialData = async (req, res) => {
@@ -62,14 +78,21 @@ exports.getInitialData = async (req, res) => {
         res.status(200).json({ processes, users, firmalar, kategoriler, logs });
     } catch (error) {
         console.error("Başlangıç verileri alınırken hata:", error);
-        res.status(500).json({ message: "Sunucu hatası" });
+        res.status(500).json({ message: "Sunucu hatası oluştu: " + error.message });
     }
 };
 
 exports.createProcess = async (req, res) => {
-    const { sorumlular, ...processData } = req.body;
-    
     try {
+        const { sorumlular, ...processData } = req.body;
+        
+        // Validation
+        if (!processData.firma || !processData.konum || !processData.baslik || !processData.surec || !processData.kategori) {
+            return res.status(400).json({ 
+                message: 'Zorunlu alanlar eksik: Firma, Konum, Başlık, Süreç ve Kategori gereklidir' 
+            });
+        }
+        
         const db = await getDb();
         
         // Yeni ID oluştur
@@ -79,16 +102,24 @@ exports.createProcess = async (req, res) => {
         await db.run(
             `INSERT INTO processes (id, firma, konum, baslik, surec, mevcutDurum, baslangicTarihi, sonrakiKontrolTarihi, tamamlanmaTarihi, kategori, altKategori, oncelikDuzeyi, durum) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            newId, processData.firma, processData.konum, processData.baslik, 
-            processData.surec, processData.mevcutDurum, processData.baslangicTarihi, 
-            processData.sonrakiKontrolTarihi, processData.tamamlanmaTarihi, 
-            processData.kategori, processData.altKategori, processData.oncelikDuzeyi, 
-            processData.durum
+            newId, 
+            processData.firma || '', 
+            processData.konum || '', 
+            processData.baslik || '', 
+            processData.surec || '', 
+            processData.mevcutDurum || '', 
+            processData.baslangicTarihi || new Date().toISOString().slice(0, 10), 
+            processData.sonrakiKontrolTarihi || '', 
+            processData.tamamlanmaTarihi || '', 
+            processData.kategori || '', 
+            processData.altKategori || '', 
+            processData.oncelikDuzeyi || 'Normal', 
+            processData.durum || 'Aktif'
         );
 
         // Sorumluları ekle ve email listesi oluştur
         const responsibleEmails = [];
-        if (sorumlular && sorumlular.length > 0) {
+        if (sorumlular && Array.isArray(sorumlular) && sorumlular.length > 0) {
             const allUsers = await db.all('SELECT id, fullName, email FROM users');
             const userMap = new Map(allUsers.map(u => [u.fullName, { id: u.id, email: u.email }]));
             
@@ -96,7 +127,7 @@ exports.createProcess = async (req, res) => {
                 const user = userMap.get(fullName);
                 if (user) {
                     await db.run(
-                        'INSERT INTO process_assignments (processId, userId) VALUES (?, ?)',
+                        'INSERT OR IGNORE INTO process_assignments (processId, userId) VALUES (?, ?)',
                         newId, user.id
                     );
                     if (user.email) {
@@ -116,23 +147,33 @@ exports.createProcess = async (req, res) => {
             newValue: "Yeni süreç oluşturuldu"
         });
 
-        // Email bildirimi gönder
-        if (responsibleEmails.length > 0) {
-            const processWithResponsibles = { ...processData, id: newId, sorumlular };
-            await sendBulkNotification(
-                responsibleEmails,
-                `Yeni Süreç Atandı: ${processData.baslik}`,
-                processWithResponsibles
-            );
+        // Email bildirimi gönder (hata durumunda işlemi durdurmaz)
+        try {
+            if (responsibleEmails.length > 0) {
+                const processWithResponsibles = { ...processData, id: newId, sorumlular };
+                await sendBulkNotification(
+                    responsibleEmails,
+                    `Yeni Süreç Atandı: ${processData.baslik}`,
+                    processWithResponsibles
+                );
+            }
+        } catch (emailError) {
+            console.error('Email gönderme hatası (süreç oluşturuldu):', emailError);
         }
 
-        req.io.emit('data_changed');
+        // Socket event emit
+        if (req.io) {
+            req.io.emit('data_changed');
+        }
+        
         res.status(201).json({ message: 'Süreç başarıyla oluşturuldu.', id: newId });
     } catch (error) {
         console.error("Süreç oluşturma hatası:", error);
-        res.status(500).json({ message: 'Sunucu hatası' });
+        res.status(500).json({ message: 'Süreç oluşturma hatası: ' + error.message });
     }
 };
+
+// updateProcess fonksiyonunu bu şekilde güncelleyin:
 
 exports.updateProcess = async (req, res) => {
     const { id } = req.params;
@@ -168,26 +209,53 @@ exports.updateProcess = async (req, res) => {
             }
         }
 
-        // Süreci güncelle
-        await db.run(
-            `UPDATE processes SET firma=?, konum=?, baslik=?, surec=?, mevcutDurum=?, baslangicTarihi=?, sonrakiKontrolTarihi=?, tamamlanmaTarihi=?, kategori=?, altKategori=?, oncelikDuzeyi=?, durum=? WHERE id=?`,
-            processData.firma, processData.konum, processData.baslik, processData.surec, 
-            processData.mevcutDurum, processData.baslangicTarihi, processData.sonrakiKontrolTarihi, 
-            processData.tamamlanmaTarihi, processData.kategori, processData.altKategori, 
-            processData.oncelikDuzeyi, processData.durum, id
-        );
+        // Tablodan sütun bilgilerini al
+        const tableInfo = await db.all("PRAGMA table_info(processes)");
+        const columnNames = tableInfo.map(col => col.name);
+        const hasUpdatedAt = columnNames.includes('updatedAt');
+
+        // Süreci güncelle - updatedAt sütunu varsa kullan
+        let updateQuery = `UPDATE processes SET 
+            firma=?, konum=?, baslik=?, surec=?, mevcutDurum=?, 
+            baslangicTarihi=?, sonrakiKontrolTarihi=?, tamamlanmaTarihi=?, 
+            kategori=?, altKategori=?, oncelikDuzeyi=?, durum=?`;
+        
+        const updateParams = [
+            processData.firma || '', 
+            processData.konum || '', 
+            processData.baslik || '', 
+            processData.surec || '', 
+            processData.mevcutDurum || '', 
+            processData.baslangicTarihi || '', 
+            processData.sonrakiKontrolTarihi || '', 
+            processData.tamamlanmaTarihi || '', 
+            processData.kategori || '', 
+            processData.altKategori || '', 
+            processData.oncelikDuzeyi || 'Normal', 
+            processData.durum || 'Aktif'
+        ];
+
+        if (hasUpdatedAt) {
+            updateQuery += `, updatedAt=?`;
+            updateParams.push(new Date().toISOString());
+        }
+        
+        updateQuery += ` WHERE id=?`;
+        updateParams.push(id);
+
+        await db.run(updateQuery, updateParams);
 
         // Sorumluları güncelle
         await db.run('DELETE FROM process_assignments WHERE processId = ?', id);
         const responsibleEmails = [];
-        if (sorumlular && sorumlular.length > 0) {
+        if (sorumlular && Array.isArray(sorumlular) && sorumlular.length > 0) {
             const allUsers = await db.all('SELECT id, fullName, email FROM users');
             const userMap = new Map(allUsers.map(u => [u.fullName, { id: u.id, email: u.email }]));
             
             for (const fullName of sorumlular) {
                 const user = userMap.get(fullName);
                 if (user) {
-                    await db.run('INSERT INTO process_assignments (processId, userId) VALUES (?, ?)', id, user.id);
+                    await db.run('INSERT OR IGNORE INTO process_assignments (processId, userId) VALUES (?, ?)', id, user.id);
                     if (user.email) {
                         responsibleEmails.push(user.email);
                     }
@@ -196,24 +264,32 @@ exports.updateProcess = async (req, res) => {
         }
 
         // Kritik değişiklikler için email gönder
-        if (Object.keys(criticalChanges).length > 0 && responsibleEmails.length > 0) {
-            const updatedProcess = { ...processData, id, sorumlular };
-            let subject = `Süreç Güncellendi: ${processData.baslik}`;
-            
-            if (criticalChanges.durum) {
-                subject = `Süreç Durumu Değişti: ${processData.baslik}`;
-            } else if (criticalChanges.oncelikDuzeyi) {
-                subject = `Süreç Önceliği Değişti: ${processData.baslik}`;
+        try {
+            if (Object.keys(criticalChanges).length > 0 && responsibleEmails.length > 0) {
+                const updatedProcess = { ...processData, id, sorumlular };
+                let subject = `Süreç Güncellendi: ${processData.baslik}`;
+                
+                if (criticalChanges.durum) {
+                    subject = `Süreç Durumu Değişti: ${processData.baslik}`;
+                } else if (criticalChanges.oncelikDuzeyi) {
+                    subject = `Süreç Önceliği Değişti: ${processData.baslik}`;
+                }
+                
+                const { sendBulkNotification } = require('../services/emailService');
+                await sendBulkNotification(responsibleEmails, subject, updatedProcess);
             }
-            
-            await sendBulkNotification(responsibleEmails, subject, updatedProcess);
+        } catch (emailError) {
+            console.error('Email gönderme hatası (süreç güncellendi):', emailError);
         }
 
-        req.io.emit('data_changed');
+        if (req.io) {
+            req.io.emit('data_changed');
+        }
+        
         res.status(200).json({ message: 'Süreç başarıyla güncellendi.' });
     } catch (error) {
         console.error("Süreç güncelleme hatası:", error);
-        res.status(500).json({ message: 'Sunucu hatası' });
+        res.status(500).json({ message: 'Süreç güncelleme hatası: ' + error.message });
     }
 };
 
@@ -242,25 +318,33 @@ exports.deleteProcess = async (req, res) => {
             newValue: "Süreç silindi"
         });
 
-        // Email bildirimi gönder
-        if (responsibleEmails.length > 0) {
-            await sendBulkNotification(
-                responsibleEmails,
-                `Süreç Silindi: ${process.baslik}`,
-                { ...process, sorumlular: responsibleEmails }
-            );
-        }
-
-        // İlişkili verileri sil (CASCADE çalışacak ama güvenlik için manuel siliyoruz)
+        // İlişkili verileri sil
         await db.run('DELETE FROM process_assignments WHERE processId = ?', id);
+        await db.run('DELETE FROM process_files WHERE processId = ?', id);
         
         // Ana süreci sil
         await db.run('DELETE FROM processes WHERE id = ?', id);
 
-        req.io.emit('data_changed');
+        // Email bildirimi gönder (hata durumunda işlemi durdurmaz)
+        try {
+            if (responsibleEmails.length > 0) {
+                await sendBulkNotification(
+                    responsibleEmails,
+                    `Süreç Silindi: ${process.baslik}`,
+                    { ...process, sorumlular: responsibleEmails }
+                );
+            }
+        } catch (emailError) {
+            console.error('Email gönderme hatası (süreç silindi):', emailError);
+        }
+
+        if (req.io) {
+            req.io.emit('data_changed');
+        }
+        
         res.status(200).json({ message: 'Süreç başarıyla silindi.' });
     } catch (error) {
         console.error("Süreç silme hatası:", error);
-        res.status(500).json({ message: 'Sunucu hatası' });
+        res.status(500).json({ message: 'Süreç silme hatası: ' + error.message });
     }
 };
