@@ -103,6 +103,23 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
         if (name === 'kategori' && value !== previousCategory) {
             setFormData(prev => ({ ...prev, [name]: value, altKategori: '' }));
             setPreviousCategory(value);
+        } 
+        // Durum değişikliği kontrolü - Tamamlanma tarihi otomatik ayarlama
+        else if (name === 'durum') {
+            if (value === 'Tamamlandı' && !formData.tamamlanmaTarihi) {
+                // Durum "Tamamlandı" seçilirse ve tamamlanma tarihi yoksa bugünün tarihini ekle
+                setFormData(prev => ({ 
+                    ...prev, 
+                    [name]: value, 
+                    tamamlanmaTarihi: new Date().toISOString().slice(0, 10),
+                    sonrakiKontrolTarihi: '' // Tamamlanan süreçlerin kontrol tarihi boş olsun
+                }));
+            } else if (value !== 'Tamamlandı' && formData.tamamlanmaTarihi) {
+                // Durum "Tamamlandı" değilse tamamlanma tarihini temizle
+                setFormData(prev => ({ ...prev, [name]: value, tamamlanmaTarihi: '' }));
+            } else {
+                setFormData(prev => ({ ...prev, [name]: value }));
+            }
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
@@ -481,20 +498,34 @@ const ProcessModal = ({ isOpen, onClose, onSubmit, isEditMode, initialData, onDe
                                         className={`${inputStyle} ${focusField === 'sonrakiKontrolTarihi' ? 'ring-2 ring-blue-500' : ''}`}
                                         disabled={formData.durum === 'Tamamlandı'}
                                     />
+                                    {formData.durum === 'Tamamlandı' && (
+                                        <p className="text-xs text-slate-500 mt-1">Tamamlanan süreçler için kontrol tarihi belirlenmez</p>
+                                    )}
                                 </div>
 
                                 {/* Tamamlanma Tarihi */}
                                 <div>
-                                    <label className={labelStyle}>Tamamlanma Tarihi</label>
+                                    <label className={labelStyle}>
+                                        Tamamlanma Tarihi
+                                        {formData.durum === 'Tamamlandı' && <span className="text-red-500"> *</span>}
+                                    </label>
                                     <input 
                                         ref={fieldRefs.tamamlanmaTarihi}
                                         type="date" 
                                         name="tamamlanmaTarihi" 
                                         value={formData.tamamlanmaTarihi} 
                                         onChange={handleChange} 
-                                        className={`${inputStyle} ${focusField === 'tamamlanmaTarihi' ? 'ring-2 ring-blue-500' : ''}`}
+                                        className={`${inputStyle} ${focusField === 'tamamlanmaTarihi' ? 'ring-2 ring-blue-500' : ''} ${
+                                            formData.durum === 'Tamamlandı' ? 'ring-2 ring-green-500' : ''
+                                        }`}
                                         disabled={formData.durum !== 'Tamamlandı'}
+                                        required={formData.durum === 'Tamamlandı'}
                                     />
+                                    {formData.durum === 'Tamamlandı' ? (
+                                        <p className="text-xs text-green-600 mt-1">✅ Tamamlanma tarihi otomatik olarak bugünün tarihi seçildi</p>
+                                    ) : (
+                                        <p className="text-xs text-slate-500 mt-1">Sadece tamamlanan süreçler için doldurulur</p>
+                                    )}
                                 </div>
 
                                 {/* Sorumlular */}
