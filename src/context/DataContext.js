@@ -187,21 +187,20 @@ export const DataProvider = ({ children }) => {
     }, []);
 
     const value = { 
-        ...data, 
-        socket, 
-        loading, 
-        unreadCounts,
-        fetchData,
-        addProcess,
-        updateProcess,
-        deleteProcess,
-        addUser,
-        editUser,
-        removeUser,
-        markMessagesAsRead
-        setData  // Bu satırı ekleyin
-    };
-
+    ...data, 
+    socket, 
+    loading, 
+    unreadCounts,
+    fetchData,
+    addProcess,
+    updateProcess,
+    deleteProcess,
+    addUser,
+    editUser,
+    removeUser,
+    markMessagesAsRead,  // Virgül eklendi
+    setData
+};
     return (
         <DataContext.Provider value={value}>
             {children}

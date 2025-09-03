@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, CompositeChart, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, ComposedChart, AreaChart, Area } from 'recharts';
 import { useToast } from '../context/ToastContext';
 
 const Dashboard = ({ processes, users, logs, onFilterApply }) => {
@@ -274,7 +274,7 @@ const Dashboard = ({ processes, users, logs, onFilterApply }) => {
                 <div className={sectionStyle}>
                     <h3 className={titleStyle}>📈 30 Günlük Trend</h3>
                     <ResponsiveContainer width="100%" height={300}>
-                        <CompositeChart data={trendData}>
+                        <ComposedChart data={trendData}>
                             <XAxis dataKey="date" stroke="#64748b" tick={chartTextStyle} />
                             <YAxis stroke="#64748b" tick={chartTextStyle} />
                             <Tooltip wrapperClassName="!bg-white/95 dark:!bg-slate-700/95 !border-slate-300 dark:!border-slate-600 !rounded-xl !shadow-modern" />
@@ -282,7 +282,7 @@ const Dashboard = ({ processes, users, logs, onFilterApply }) => {
                             <Area type="monotone" dataKey="completed" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
                             <Line type="monotone" dataKey="net" stroke="#f59e0b" strokeWidth={2} />
                             <Legend />
-                        </CompositeChart>
+                        </ComposedChart>
                     </ResponsiveContainer>
                 </div>
 
