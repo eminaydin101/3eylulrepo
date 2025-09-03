@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ProcessTable = ({ tableRows, onEdit, sortConfig, handleSort, userRole, onRowClick }) => {
+const ProcessTable = ({ tableRows, onEdit, sortConfig, handleSort, userRole, onRowClick, visibleColumns }) => {
     const thStyle = "p-3 text-left text-xs font-semibold text-white uppercase tracking-wider bg-slate-700 dark:bg-slate-800";
     const tdStyle = "px-3 py-4 border-b border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300";
 
@@ -13,6 +13,24 @@ const ProcessTable = ({ tableRows, onEdit, sortConfig, handleSort, userRole, onR
     };
 
     const canEdit = userRole === 'Admin' || userRole === 'Editor' || userRole === 'SuperAdmin';
+
+    // Kullanılacak sütunları belirle (eğer visibleColumns yoksa tüm sütunları göster)
+    const columnsToShow = visibleColumns && visibleColumns.length > 0 ? visibleColumns : [
+        { key: 'id', label: 'ID' },
+        { key: 'firma', label: 'Firma' },
+        { key: 'konum', label: 'Konum' },
+        { key: 'baslik', label: 'Başlık' },
+        { key: 'surec', label: 'Süreç' },
+        { key: 'mevcutDurum', label: 'Mevcut Durum' },
+        { key: 'baslangicTarihi', label: 'Başlangıç Tarihi' },
+        { key: 'sonrakiKontrolTarihi', label: 'Kontrol Tarihi' },
+        { key: 'tamamlanmaTarihi', label: 'Tamamlanma Tarihi' },
+        { key: 'kategori', label: 'Kategori' },
+        { key: 'altKategori', label: 'Alt Kategori' },
+        { key: 'sorumlular', label: 'Sorumlular' },
+        { key: 'oncelikDuzeyi', label: 'Öncelik' },
+        { key: 'durum', label: 'Durum' }
+    ];
 
     const SortableHeader = ({ title, field }) => (
         <th className={thStyle}>
@@ -31,13 +49,81 @@ const ProcessTable = ({ tableRows, onEdit, sortConfig, handleSort, userRole, onR
     );
 
     const handleCellClick = (row, field, event) => {
-        // Düzenle butonuna tıklanırsa modal aç
         if (event.target.closest('button')) {
             return;
         }
-        // Diğer durumlarda row click handler'ı çağır
         if (onRowClick) {
             onRowClick(row, field);
+        }
+    };
+
+    const renderCellContent = (row, column) => {
+        const field = column.key;
+        const value = row[field];
+
+        switch (field) {
+            case 'id':
+                return (
+                    <span className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs">
+                        {value}
+                    </span>
+                );
+
+            case 'baslik':
+                return (
+                    <div className="min-w-[200px] font-semibold">
+                        {value}
+                    </div>
+                );
+
+            case 'surec':
+            case 'mevcutDurum':
+                return (
+                    <div className="min-w-[250px]">
+                        <div className="truncate max-w-xs" title={value}>
+                            {value}
+                        </div>
+                    </div>
+                );
+
+            case 'sorumlular':
+                return (
+                    <div className="min-w-[150px]">
+                        <div className="truncate" title={value?.join(', ')}>
+                            {value?.join(', ')}
+                        </div>
+                    </div>
+                );
+
+            case 'oncelikDuzeyi':
+                return (
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        value === 'Yüksek' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
+                        value === 'Orta' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                    }`}>
+                        {value}
+                    </span>
+                );
+
+            case 'durum':
+                return (
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        value === 'Tamamlandı' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
+                        value === 'İşlemde' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                    }`}>
+                        {value}
+                    </span>
+                );
+
+            case 'baslangicTarihi':
+            case 'sonrakiKontrolTarihi':
+            case 'tamamlanmaTarihi':
+                return <div className="min-w-[120px]">{value}</div>;
+
+            default:
+                return value;
         }
     };
 
@@ -56,128 +142,28 @@ const ProcessTable = ({ tableRows, onEdit, sortConfig, handleSort, userRole, onR
             <table className="min-w-full">
                 <thead className="sticky top-0 z-10">
                     <tr>
-                        <SortableHeader title="ID" field="id" />
-                        <SortableHeader title="Firma" field="firma" />
-                        <SortableHeader title="Konum" field="konum" />
-                        <SortableHeader title="Başlık" field="baslik" />
-                        <SortableHeader title="Süreç" field="surec" />
-                        <SortableHeader title="Mevcut Durum" field="mevcutDurum" />
-                        <SortableHeader title="Başlangıç Tarihi" field="baslangicTarihi" />
-                        <SortableHeader title="Kontrol Tarihi" field="sonrakiKontrolTarihi" />
-                        <SortableHeader title="Tamamlanma Tarihi" field="tamamlanmaTarihi" />
-                        <SortableHeader title="Kategori" field="kategori" />
-                        <SortableHeader title="Alt Kategori" field="altKategori" />
-                        <SortableHeader title="Sorumlular" field="sorumlular" />
-                        <SortableHeader title="Öncelik" field="oncelikDuzeyi" />
-                        <SortableHeader title="Durum" field="durum" />
+                        {columnsToShow.map(column => (
+                            <SortableHeader 
+                                key={column.key} 
+                                title={column.label} 
+                                field={column.key} 
+                            />
+                        ))}
                         {canEdit && <th className={thStyle}>İşlemler</th>}
                     </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-slate-800">
                     {tableRows.map(row => (
-                       <tr key={row.id} className={`${getPriorityRowStyle(row.oncelikDuzeyi)} transition-colors duration-150`}>
-                            <td 
-                                className={`${tdStyle} font-mono text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20`}
-                                onClick={(e) => handleCellClick(row, 'id', e)}
-                            >
-                                <span className="text-blue-600 dark:text-blue-400 hover:underline">{row.id}</span>
-                            </td>
-                            <td 
-                                className={`${tdStyle} cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'firma', e)}
-                            >
-                                {row.firma}
-                            </td>
-                            <td 
-                                className={`${tdStyle} cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'konum', e)}
-                            >
-                                {row.konum}
-                            </td>
-                            <td 
-                                className={`${tdStyle} min-w-[200px] font-semibold cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'baslik', e)}
-                            >
-                                {row.baslik}
-                            </td>
-                            <td 
-                                className={`${tdStyle} min-w-[250px] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'surec', e)}
-                            >
-                                <div className="truncate max-w-xs" title={row.surec}>
-                                    {row.surec}
-                                </div>
-                            </td>
-                            <td 
-                                className={`${tdStyle} min-w-[250px] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'mevcutDurum', e)}
-                            >
-                                <div className="truncate max-w-xs" title={row.mevcutDurum}>
-                                    {row.mevcutDurum}
-                                </div>
-                            </td>
-                            <td 
-                                className={`${tdStyle} min-w-[120px] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'baslangicTarihi', e)}
-                            >
-                                {row.baslangicTarihi}
-                            </td>
-                            <td 
-                                className={`${tdStyle} min-w-[120px] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'sonrakiKontrolTarihi', e)}
-                            >
-                                {row.sonrakiKontrolTarihi}
-                            </td>
-                            <td 
-                                className={`${tdStyle} min-w-[120px] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'tamamlanmaTarihi', e)}
-                            >
-                                {row.tamamlanmaTarihi}
-                            </td>
-                            <td 
-                                className={`${tdStyle} cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'kategori', e)}
-                            >
-                                {row.kategori}
-                            </td>
-                            <td 
-                                className={`${tdStyle} cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'altKategori', e)}
-                            >
-                                {row.altKategori}
-                            </td>
-                            <td 
-                                className={`${tdStyle} min-w-[150px] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'sorumlular', e)}
-                            >
-                                <div className="truncate" title={row.sorumlular?.join(', ')}>
-                                    {row.sorumlular?.join(', ')}
-                                </div>
-                            </td>
-                            <td 
-                                className={`${tdStyle} cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'oncelikDuzeyi', e)}
-                            >
-                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    row.oncelikDuzeyi === 'Yüksek' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
-                                    row.oncelikDuzeyi === 'Orta' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                    'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                }`}>
-                                    {row.oncelikDuzeyi}
-                                </span>
-                            </td>
-                            <td 
-                                className={`${tdStyle} cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
-                                onClick={(e) => handleCellClick(row, 'durum', e)}
-                            >
-                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    row.durum === 'Tamamlandı' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
-                                    row.durum === 'İşlemde' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                    'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                }`}>
-                                    {row.durum}
-                                </span>
-                            </td>
+                        <tr key={row.id} className={`${getPriorityRowStyle(row.oncelikDuzeyi)} transition-colors duration-150`}>
+                            {columnsToShow.map(column => (
+                                <td 
+                                    key={column.key}
+                                    className={`${tdStyle} cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50`}
+                                    onClick={(e) => handleCellClick(row, column.key, e)}
+                                >
+                                    {renderCellContent(row, column)}
+                                </td>
+                            ))}
                             {canEdit && (
                                 <td className={`${tdStyle} min-w-[80px]`}>
                                     <button 

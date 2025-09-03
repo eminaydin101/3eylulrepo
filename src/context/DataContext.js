@@ -199,6 +199,7 @@ export const DataProvider = ({ children }) => {
         editUser,
         removeUser,
         markMessagesAsRead
+        setData  // Bu satırı ekleyin
     };
 
     return (

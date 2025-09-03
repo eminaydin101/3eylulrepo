@@ -506,41 +506,137 @@ const handleFactoryReset = async () => {
     };
 
     // Category Update Handler for Admin Panel
-    const handleCategoryUpdate = async (action, data) => {
-        setSystemOperationLoading(true);
-        try {
-            // Simulate API calls
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            switch(action) {
-                case 'ADD_CATEGORY':
-                    success(`"${data.name}" kategorisi eklendi`);
-                    break;
-                case 'ADD_SUBCATEGORY':
-                    success(`"${data.subCategory}" alt kategorisi eklendi`);
-                    break;
-                case 'ADD_FIRM':
-                    success(`"${data.name}" firması eklendi`);
-                    break;
-                case 'ADD_LOCATION':
-                    success(`"${data.location}" konumu eklendi`);
-                    break;
-                case 'DELETE_CATEGORY':
-                    success(`"${data.name}" kategorisi silindi`);
-                    break;
-                case 'DELETE_SUBCATEGORY':
-                    success(`"${data.subCategory}" alt kategorisi silindi`);
-                    break;
-                default:
-                    break;
-            }
-            await fetchData(); // Refresh data after changes
-        } catch (err) {
-            error('İşlem sırasında hata oluştu');
-        } finally {
-            setSystemOperationLoading(false);
+    // MainLayout.js dosyasında handleCategoryUpdate fonksiyonunu bu şekilde güncelleyin:
+
+// Category Update Handler for Admin Panel - GELİŞTİRİLMİŞ VERSİYON
+const handleCategoryUpdate = async (action, data) => {
+    setSystemOperationLoading(true);
+    try {
+        // Simulated API call - gerçek uygulamada backend'e istek gönderilecek
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        switch(action) {
+            case 'ADD_CATEGORY':
+                // Kategoriler state'ini güncelle
+                setData(prevData => ({
+                    ...prevData,
+                    kategoriler: {
+                        ...prevData.kategoriler,
+                        [data.name]: []
+                    }
+                }));
+                success(`"${data.name}" kategorisi eklendi`);
+                break;
+                
+            case 'ADD_SUBCATEGORY':
+                setData(prevData => ({
+                    ...prevData,
+                    kategoriler: {
+                        ...prevData.kategoriler,
+                        [data.category]: [
+                            ...(prevData.kategoriler[data.category] || []),
+                            data.subCategory
+                        ]
+                    }
+                }));
+                success(`"${data.subCategory}" alt kategorisi eklendi`);
+                break;
+                
+            case 'ADD_FIRM':
+                setData(prevData => ({
+                    ...prevData,
+                    firmalar: {
+                        ...prevData.firmalar,
+                        [data.name]: []
+                    }
+                }));
+                success(`"${data.name}" firması eklendi`);
+                break;
+                
+            case 'ADD_LOCATION':
+                setData(prevData => ({
+                    ...prevData,
+                    firmalar: {
+                        ...prevData.firmalar,
+                        [data.company]: [
+                            ...(prevData.firmalar[data.company] || []),
+                            data.location
+                        ]
+                    }
+                }));
+                success(`"${data.location}" lokasyonu eklendi`);
+                break;
+                
+            case 'DELETE_CATEGORY':
+                setData(prevData => {
+                    const newKategoriler = { ...prevData.kategoriler };
+                    delete newKategoriler[data.name];
+                    return {
+                        ...prevData,
+                        kategoriler: newKategoriler
+                    };
+                });
+                success(`"${data.name}" kategorisi silindi`);
+                break;
+                
+            case 'DELETE_SUBCATEGORY':
+                setData(prevData => ({
+                    ...prevData,
+                    kategoriler: {
+                        ...prevData.kategoriler,
+                        [data.category]: prevData.kategoriler[data.category].filter(
+                            sub => sub !== data.subCategory
+                        )
+                    }
+                }));
+                success(`"${data.subCategory}" alt kategorisi silindi`);
+                break;
+                
+            case 'DELETE_COMPANY':
+                setData(prevData => {
+                    const newFirmalar = { ...prevData.firmalar };
+                    delete newFirmalar[data.name];
+                    return {
+                        ...prevData,
+                        firmalar: newFirmalar
+                    };
+                });
+                success(`"${data.name}" firması silindi`);
+                break;
+                
+            case 'DELETE_LOCATION':
+                setData(prevData => ({
+                    ...prevData,
+                    firmalar: {
+                        ...prevData.firmalar,
+                        [data.company]: prevData.firmalar[data.company].filter(
+                            loc => loc !== data.location
+                        )
+                    }
+                }));
+                success(`"${data.location}" lokasyonu silindi`);
+                break;
+                
+            default:
+                console.warn('Bilinmeyen kategori işlemi:', action);
+                break;
         }
-    };
+        
+        // Local storage'a da kaydet (opsiyonel)
+        const currentData = JSON.parse(localStorage.getItem('categoryData') || '{}');
+        const updatedData = {
+            kategoriler: data.data || currentData.kategoriler,
+            firmalar: data.data || currentData.firmalar,
+            lastUpdated: new Date().toISOString()
+        };
+        localStorage.setItem('categoryData', JSON.stringify(updatedData));
+        
+    } catch (err) {
+        error('İşlem sırasında hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+        setSystemOperationLoading(false);
+    }
+};
 
     // Table Columns Update Handler
     const handleTableColumnsUpdate = (newColumns) => {
