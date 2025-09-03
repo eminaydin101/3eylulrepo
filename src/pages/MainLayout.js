@@ -20,7 +20,7 @@ import KanbanBoard from '../components/KanbanBoard';
 
 const MainLayout = () => {
     const { user, logout } = useAuth();
-    const { processes, users, firmalar, kategoriler, logs, loading, unreadCounts, addProcess, updateProcess, deleteProcess, addUser, editUser, removeUser, fetchData } = useData();
+    const { processes, users, firmalar, kategoriler, logs, loading, unreadCounts, addProcess, updateProcess, deleteProcess, addUser, editUser, removeUser, fetchData, setData } = useData();
     const { success, error } = useToast();
 
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -69,7 +69,6 @@ const MainLayout = () => {
     // System/Admin operation states
     const [systemOperationLoading, setSystemOperationLoading] = useState(false);
 
-    // Dashboard'dan gelen filtre uygulama
     // Dashboard'dan gelen filtre uygulama - DÜZELTME
     const handleDashboardFilterApply = (filterType, filterValue) => {
         console.log('Dashboard filter:', filterType, filterValue); // Debug için
@@ -333,94 +332,90 @@ const MainLayout = () => {
         }
     };
 
-    // AKTIF EDİLEN YENİ BUTON FONKSİYONLARI
-
     // System Operations
-    // Bu fonksiyonları mevcut MainLayout.js dosyasında bulup değiştirin:
-
-const handleDatabaseBackup = async () => {
-    setSystemOperationLoading(true);
-    try {
-        const response = await api.createDatabaseBackup();
-        success(response.data.message);
-        await fetchData(); // Refresh data
-    } catch (err) {
-        error('Yedekleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
-    } finally {
-        setSystemOperationLoading(false);
-    }
-};
-
-const handleCleanTempFiles = async () => {
-    setSystemOperationLoading(true);
-    try {
-        const response = await api.cleanTempFiles();
-        success(response.data.message + ` (${response.data.stats.cleanedFiles} dosya, ${response.data.stats.freedSpace} alan temizlendi)`);
-    } catch (err) {
-        error('Dosya temizleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
-    } finally {
-        setSystemOperationLoading(false);
-    }
-};
-
-const handleGenerateSystemReport = async () => {
-    setSystemOperationLoading(true);
-    try {
-        const response = await api.generateSystemReport();
-        
-        // Raporu JSON olarak indir
-        const reportData = response.data.report;
-        const reportJson = JSON.stringify(reportData, null, 2);
-        const blob = new Blob([reportJson], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `sistem-raporu-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        success('Sistem raporu oluşturuldu ve indiriliyor');
-    } catch (err) {
-        error('Rapor oluşturma işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
-    } finally {
-        setSystemOperationLoading(false);
-    }
-};
-
-const handleClearAllLogs = async () => {
-    if (window.confirm('Tüm log kayıtlarını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+    const handleDatabaseBackup = async () => {
         setSystemOperationLoading(true);
         try {
-            const response = await api.clearAllLogs();
-            success(response.data.message + ` (${response.data.deletedLogs} log silindi)`);
-            await fetchData();
+            const response = await api.createDatabaseBackup();
+            success(response.data.message);
+            await fetchData(); // Refresh data
         } catch (err) {
-            error('Log temizleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+            error('Yedekleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
         } finally {
             setSystemOperationLoading(false);
         }
-    }
-};
+    };
 
-const handleFactoryReset = async () => {
-    if (window.confirm('⚠️ DİKKAT: Sistemi fabrika ayarlarına sıfırlarsanız TÜM VERİLER silinecektir. Bu işlem geri alınamaz. Devam etmek istediğinizden emin misiniz?') &&
-        window.confirm('Son kez soruyorum: TÜM VERİLERİN SİLİNMESİNİ onaylıyor musunuz?')) {
+    const handleCleanTempFiles = async () => {
         setSystemOperationLoading(true);
         try {
-            const response = await api.factoryReset();
-            success('Sistem fabrika ayarlarına sıfırlandı');
-            setTimeout(() => {
-                logout();
-            }, 2000);
+            const response = await api.cleanTempFiles();
+            success(response.data.message + ` (${response.data.stats.cleanedFiles} dosya, ${response.data.stats.freedSpace} alan temizlendi)`);
         } catch (err) {
-            error('Sistem sıfırlama işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+            error('Dosya temizleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
         } finally {
             setSystemOperationLoading(false);
         }
-    }
-};
+    };
+
+    const handleGenerateSystemReport = async () => {
+        setSystemOperationLoading(true);
+        try {
+            const response = await api.generateSystemReport();
+            
+            // Raporu JSON olarak indir
+            const reportData = response.data.report;
+            const reportJson = JSON.stringify(reportData, null, 2);
+            const blob = new Blob([reportJson], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sistem-raporu-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            success('Sistem raporu oluşturuldu ve indiriliyor');
+        } catch (err) {
+            error('Rapor oluşturma işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setSystemOperationLoading(false);
+        }
+    };
+
+    const handleClearAllLogs = async () => {
+        if (window.confirm('Tüm log kayıtlarını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+            setSystemOperationLoading(true);
+            try {
+                const response = await api.clearAllLogs();
+                success(response.data.message + ` (${response.data.deletedLogs} log silindi)`);
+                await fetchData();
+            } catch (err) {
+                error('Log temizleme işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+            } finally {
+                setSystemOperationLoading(false);
+            }
+        }
+    };
+
+    const handleFactoryReset = async () => {
+        if (window.confirm('⚠️ DİKKAT: Sistemi fabrika ayarlarına sıfırlarsanız TÜM VERİLER silinecektir. Bu işlem geri alınamaz. Devam etmek istediğinizden emin misiniz?') &&
+            window.confirm('Son kez soruyorum: TÜM VERİLERİN SİLİNMESİNİ onaylıyor musunuz?')) {
+            setSystemOperationLoading(true);
+            try {
+                const response = await api.factoryReset();
+                success('Sistem fabrika ayarlarına sıfırlandı');
+                setTimeout(() => {
+                    logout();
+                }, 2000);
+            } catch (err) {
+                error('Sistem sıfırlama işlemi sırasında hata oluştu: ' + (err.response?.data?.message || err.message));
+            } finally {
+                setSystemOperationLoading(false);
+            }
+        }
+    };
 
     const handleExportLogs = async () => {
         setIsExporting(true);
@@ -505,138 +500,135 @@ const handleFactoryReset = async () => {
         }
     };
 
-    // Category Update Handler for Admin Panel
-    // MainLayout.js dosyasında handleCategoryUpdate fonksiyonunu bu şekilde güncelleyin:
-
-// Category Update Handler for Admin Panel - GELİŞTİRİLMİŞ VERSİYON
-const handleCategoryUpdate = async (action, data) => {
-    setSystemOperationLoading(true);
-    try {
-        // Simulated API call - gerçek uygulamada backend'e istek gönderilecek
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        switch(action) {
-            case 'ADD_CATEGORY':
-                // Kategoriler state'ini güncelle
-                setData(prevData => ({
-                    ...prevData,
-                    kategoriler: {
-                        ...prevData.kategoriler,
-                        [data.name]: []
-                    }
-                }));
-                success(`"${data.name}" kategorisi eklendi`);
-                break;
-                
-            case 'ADD_SUBCATEGORY':
-                setData(prevData => ({
-                    ...prevData,
-                    kategoriler: {
-                        ...prevData.kategoriler,
-                        [data.category]: [
-                            ...(prevData.kategoriler[data.category] || []),
-                            data.subCategory
-                        ]
-                    }
-                }));
-                success(`"${data.subCategory}" alt kategorisi eklendi`);
-                break;
-                
-            case 'ADD_FIRM':
-                setData(prevData => ({
-                    ...prevData,
-                    firmalar: {
-                        ...prevData.firmalar,
-                        [data.name]: []
-                    }
-                }));
-                success(`"${data.name}" firması eklendi`);
-                break;
-                
-            case 'ADD_LOCATION':
-                setData(prevData => ({
-                    ...prevData,
-                    firmalar: {
-                        ...prevData.firmalar,
-                        [data.company]: [
-                            ...(prevData.firmalar[data.company] || []),
-                            data.location
-                        ]
-                    }
-                }));
-                success(`"${data.location}" lokasyonu eklendi`);
-                break;
-                
-            case 'DELETE_CATEGORY':
-                setData(prevData => {
-                    const newKategoriler = { ...prevData.kategoriler };
-                    delete newKategoriler[data.name];
-                    return {
+    // Category Update Handler for Admin Panel - DÜZELTME
+    const handleCategoryUpdate = async (action, data) => {
+        setSystemOperationLoading(true);
+        try {
+            // Simulated API call - gerçek uygulamada backend'e istek gönderilecek
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            switch(action) {
+                case 'ADD_CATEGORY':
+                    // Kategoriler state'ini güncelle - setData kullanarak
+                    setData(prevData => ({
                         ...prevData,
-                        kategoriler: newKategoriler
-                    };
-                });
-                success(`"${data.name}" kategorisi silindi`);
-                break;
-                
-            case 'DELETE_SUBCATEGORY':
-                setData(prevData => ({
-                    ...prevData,
-                    kategoriler: {
-                        ...prevData.kategoriler,
-                        [data.category]: prevData.kategoriler[data.category].filter(
-                            sub => sub !== data.subCategory
-                        )
-                    }
-                }));
-                success(`"${data.subCategory}" alt kategorisi silindi`);
-                break;
-                
-            case 'DELETE_COMPANY':
-                setData(prevData => {
-                    const newFirmalar = { ...prevData.firmalar };
-                    delete newFirmalar[data.name];
-                    return {
+                        kategoriler: {
+                            ...prevData.kategoriler,
+                            [data.name]: []
+                        }
+                    }));
+                    success(`"${data.name}" kategorisi eklendi`);
+                    break;
+                    
+                case 'ADD_SUBCATEGORY':
+                    setData(prevData => ({
                         ...prevData,
-                        firmalar: newFirmalar
-                    };
-                });
-                success(`"${data.name}" firması silindi`);
-                break;
-                
-            case 'DELETE_LOCATION':
-                setData(prevData => ({
-                    ...prevData,
-                    firmalar: {
-                        ...prevData.firmalar,
-                        [data.company]: prevData.firmalar[data.company].filter(
-                            loc => loc !== data.location
-                        )
-                    }
-                }));
-                success(`"${data.location}" lokasyonu silindi`);
-                break;
-                
-            default:
-                console.warn('Bilinmeyen kategori işlemi:', action);
-                break;
+                        kategoriler: {
+                            ...prevData.kategoriler,
+                            [data.category]: [
+                                ...(prevData.kategoriler[data.category] || []),
+                                data.subCategory
+                            ]
+                        }
+                    }));
+                    success(`"${data.subCategory}" alt kategorisi eklendi`);
+                    break;
+                    
+                case 'ADD_FIRM':
+                    setData(prevData => ({
+                        ...prevData,
+                        firmalar: {
+                            ...prevData.firmalar,
+                            [data.name]: []
+                        }
+                    }));
+                    success(`"${data.name}" firması eklendi`);
+                    break;
+                    
+                case 'ADD_LOCATION':
+                    setData(prevData => ({
+                        ...prevData,
+                        firmalar: {
+                            ...prevData.firmalar,
+                            [data.company]: [
+                                ...(prevData.firmalar[data.company] || []),
+                                data.location
+                            ]
+                        }
+                    }));
+                    success(`"${data.location}" lokasyonu eklendi`);
+                    break;
+                    
+                case 'DELETE_CATEGORY':
+                    setData(prevData => {
+                        const newKategoriler = { ...prevData.kategoriler };
+                        delete newKategoriler[data.name];
+                        return {
+                            ...prevData,
+                            kategoriler: newKategoriler
+                        };
+                    });
+                    success(`"${data.name}" kategorisi silindi`);
+                    break;
+                    
+                case 'DELETE_SUBCATEGORY':
+                    setData(prevData => ({
+                        ...prevData,
+                        kategoriler: {
+                            ...prevData.kategoriler,
+                            [data.category]: prevData.kategoriler[data.category].filter(
+                                sub => sub !== data.subCategory
+                            )
+                        }
+                    }));
+                    success(`"${data.subCategory}" alt kategorisi silindi`);
+                    break;
+                    
+                case 'DELETE_COMPANY':
+                    setData(prevData => {
+                        const newFirmalar = { ...prevData.firmalar };
+                        delete newFirmalar[data.name];
+                        return {
+                            ...prevData,
+                            firmalar: newFirmalar
+                        };
+                    });
+                    success(`"${data.name}" firması silindi`);
+                    break;
+                    
+                case 'DELETE_LOCATION':
+                    setData(prevData => ({
+                        ...prevData,
+                        firmalar: {
+                            ...prevData.firmalar,
+                            [data.company]: prevData.firmalar[data.company].filter(
+                                loc => loc !== data.location
+                            )
+                        }
+                    }));
+                    success(`"${data.location}" lokasyonu silindi`);
+                    break;
+                    
+                default:
+                    console.warn('Bilinmeyen kategori işlemi:', action);
+                    break;
+            }
+            
+            // Local storage'a da kaydet (opsiyonel)
+            const currentData = JSON.parse(localStorage.getItem('categoryData') || '{}');
+            const updatedData = {
+                kategoriler: data.data || currentData.kategoriler,
+                firmalar: data.data || currentData.firmalar,
+                lastUpdated: new Date().toISOString()
+            };
+            localStorage.setItem('categoryData', JSON.stringify(updatedData));
+            
+        } catch (err) {
+            error('İşlem sırasında hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
+        } finally {
+            setSystemOperationLoading(false);
         }
-        
-        // Local storage'a da kaydet (opsiyonel)
-        const currentData = JSON.parse(localStorage.getItem('categoryData') || '{}');
-        const updatedData = {
-            kategoriler: data.data || currentData.kategoriler,
-            firmalar: data.data || currentData.firmalar,
-            lastUpdated: new Date().toISOString()
-        };
-        localStorage.setItem('categoryData', JSON.stringify(updatedData));
-        
-    } catch (err) {
-        error('İşlem sırasında hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
-    } finally {
-        setSystemOperationLoading(false);
-    }
-};
+    };
 
     // Table Columns Update Handler
     const handleTableColumnsUpdate = (newColumns) => {
@@ -657,230 +649,210 @@ const handleCategoryUpdate = async (action, data) => {
         }
     }, []);
 
-    if (loading) { 
-        return <LoadingOverlay isVisible={true} text="Veriler Yükleniyor..." />; 
-    }
-
-    const getCurrentTableData = () => {
-        if (activeTab === 'myProcesses') return myProcesses;
-        if (activeTab === 'processTable') {
-            return processView === 'active' ? activeRows : completedRows;
-        }
-        return [];
-    };
-
     return (
-        <div className="h-screen bg-slate-100 dark:bg-slate-900">
-            <div className="flex flex-col h-full">
-                <Header 
-                    onTabChange={setActiveTab} 
-                    activeTab={activeTab} 
-                    onToggleSidebar={() => setSidebarOpen(true)} 
-                    onLogout={logout} 
-                    theme={theme} 
-                    handleThemeToggle={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
-                />
-                
-                <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-                    {activeTab === 'profile' && <Profile 
-                        onDownloadData={handleDownloadUserData}
-                        onDeleteAccount={handleDeleteAccount}
-                    />}
-                    {activeTab === 'settings' && <Settings />}
-                    {activeTab === 'dashboard' && (
-                        <Dashboard 
-                            processes={processes} 
-                            users={users} 
-                            logs={logs} 
-                            onFilterApply={handleDashboardFilterApply}
-                        />
-                    )}
-
-                    {(activeTab === 'processTable' || activeTab === 'myProcesses') && (
-                        <div>
-                            <div className="mb-6">
-                                <AdvancedFilter
-                                    filters={filters}
-                                    onFilterChange={handleFilterChange}
-                                    onReset={handleFilterReset}
-                                    users={users}
-                                    firmalar={firmalar}
-                                    kategoriler={kategoriler}
-                                />
-                            </div>
-
-                            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-4">
-                                <div className="flex items-center gap-2">
-                                    {activeTab === 'processTable' && (
-                                        <>
-                                            <button 
-                                                onClick={() => setProcessView('active')} 
-                                                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${processView === 'active' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                            >
-                                                Aktif ({activeRows.length})
-                                            </button>
-                                            <button 
-                                                onClick={() => setProcessView('completed')} 
-                                                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${processView === 'completed' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                            >
-                                                Tamamlanmış ({completedRows.length})
-                                            </button>
-                                        </>
-                                    )}
-
-                                    {activeTab === 'myProcesses' && (
-                                        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                                            Süreçlerim ({myProcesses.length})
-                                        </h2>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center bg-slate-200 dark:bg-slate-700 rounded-lg p-1">
-                                        <button
-                                            onClick={() => setViewMode('table')}
-                                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                                viewMode === 'table' 
-                                                ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow' 
-                                                : 'text-slate-600 dark:text-slate-400'
-                                            }`}
-                                        >
-                                            📋 Tablo
-                                        </button>
-                                        <button
-                                            onClick={() => setViewMode('kanban')}
-                                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                                viewMode === 'kanban' 
-                                                ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow' 
-                                                : 'text-slate-600 dark:text-slate-400'
-                                            }`}
-                                        >
-                                            📊 Kanban
-                                        </button>
-                                    </div>
-
-                                    <ExportButton 
-                                        data={getCurrentTableData()} 
-                                        filename={activeTab === 'myProcesses' ? 'benim-sureclerim' : 'tum-surecler'} 
-                                    />
-
-                                    <button 
-                                        onClick={handleOpenNewProcessModal} 
-                                        className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                                    >
-                                        ➕ Yeni Süreç
-                                    </button>
-                                </div>
-                            </div>
-
-                            {viewMode === 'table' ? (
-                                <ProcessTable 
-                                    tableRows={getCurrentTableData()} 
-                                    onEdit={handleOpenEditProcessModal} 
-                                    onRowClick={handleProcessTableRowClick}
-                                    sortConfig={sortConfig} 
-                                    handleSort={requestSort} 
-                                    userRole={user.role} 
-                                    visibleColumns={tableColumns}
-                                />
-                            ) : (
-                                <KanbanBoard 
-                                    processes={getCurrentTableData()} 
-                                    onEdit={handleOpenEditProcessModal}
-                                    onStatusChange={handleStatusChange}
-                                />
-                            )}
-                        </div>
-                    )}
-
-                    {isAdmin && activeTab === 'admin' && (
-                        <AdminPanel 
-                            users={users} 
-                            firmalar={firmalar} 
-                            kategoriler={kategoriler}
-                            processes={processes}
-                            logs={logs}
-                            openUserModal={handleOpenEditUserModal} 
-                            openNewUserModal={handleOpenNewUserModal} 
-                            requestUserDelete={handleUserDelete}
-                            currentTableColumns={tableColumns}
-                            onTableColumnsUpdate={handleTableColumnsUpdate}
-                            onCategoryUpdate={handleCategoryUpdate}
-                            onDatabaseBackup={handleDatabaseBackup}
-                            onCleanTempFiles={handleCleanTempFiles}
-                            onGenerateSystemReport={handleGenerateSystemReport}
-                            onClearAllLogs={handleClearAllLogs}
-                            onFactoryReset={handleFactoryReset}
-                            onExportLogs={handleExportLogs}
-                            systemOperationLoading={systemOperationLoading}
-                        />
-                    )}
-                </main>
-            </div>
-
-            <Sidebar 
-                isOpen={isSidebarOpen} 
-                onClose={() => setSidebarOpen(false)} 
-                onTabChange={setActiveTab} 
-                activeTab={activeTab} 
-                isAdmin={isAdmin} 
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
+            <LoadingOverlay 
+                isVisible={loading || systemOperationLoading || isExporting} 
+                text={systemOperationLoading ? "Sistem işlemi devam ediyor..." : isExporting ? "Dışa aktarılıyor..." : "Yükleniyor..."}
             />
 
-            {isProcessModalOpen && (
-                <ProcessModal 
-                    isOpen={isProcessModalOpen} 
-                    onClose={() => setIsProcessModalOpen(false)} 
-                    onSubmit={handleProcessSubmit} 
-                    isEditMode={isProcessEditMode} 
-                    initialData={currentProcessData} 
-                    onDelete={handleDeleteProcess}
-                    focusField={processModalFocusField}
-                />
-            )}
+            <Header
+                onTabChange={setActiveTab}
+                activeTab={activeTab}
+                onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
+                onLogout={logout}
+                theme={theme}
+                handleThemeToggle={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            />
 
-            {isUserModalOpen && (
-                <UserModal 
-                    isOpen={isUserModalOpen} 
-                    onClose={() => setIsUserModalOpen(false)} 
-                    onSubmit={handleUserSubmit} 
-                    isEditMode={isUserEditMode} 
-                    initialData={currentUserData} 
-                />
-            )}
+            <Sidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+                onTabChange={setActiveTab}
+                activeTab={activeTab}
+                isAdmin={isAdmin}
+            />
+
+            <div className="p-6">
+                {activeTab === 'dashboard' && (
+                    <Dashboard 
+                        processes={processes} 
+                        users={users} 
+                        logs={logs}
+                        onFilterApply={handleDashboardFilterApply}
+                    />
+                )}
+
+                {(activeTab === 'processTable' || activeTab === 'myProcesses') && (
+                    <div className="space-y-6">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                                {activeTab === 'myProcesses' ? 'Süreçlerim' : 'Tüm Süreçler'}
+                            </h2>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center bg-slate-200 dark:bg-slate-700 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setProcessView('active')}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            processView === 'active'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm'
+                                                : 'text-slate-600 dark:text-slate-400'
+                                        }`}
+                                    >
+                                        Aktif ({activeRows.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setProcessView('completed')}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            processView === 'completed'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm'
+                                                : 'text-slate-600 dark:text-slate-400'
+                                        }`}
+                                    >
+                                        Tamamlanan ({completedRows.length})
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center bg-slate-200 dark:bg-slate-700 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setViewMode('table')}
+                                        className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                                            viewMode === 'table'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+                                                : 'text-slate-600 dark:text-slate-400'
+                                        }`}
+                                    >
+                                        Tablo
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('kanban')}
+                                        className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                                            viewMode === 'kanban'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+                                                : 'text-slate-600 dark:text-slate-400'
+                                        }`}
+                                    >
+                                        Kanban
+                                    </button>
+                                </div>
+
+                                <ExportButton 
+                                    data={activeTab === 'myProcesses' ? myProcesses : 
+                                          processView === 'active' ? activeRows : completedRows}
+                                    filename={activeTab === 'myProcesses' ? 'benim-sureclerim' : 
+                                              processView === 'active' ? 'aktif-surecler' : 'tamamlanan-surecler'}
+                                />
+                                <button 
+                                    onClick={handleOpenNewProcessModal}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    Yeni Süreç
+                                </button>
+                            </div>
+                        </div>
+
+                        <AdvancedFilter
+                            filters={filters}
+                            onFilterChange={handleFilterChange}
+                            onReset={handleFilterReset}
+                            users={users}
+                            firmalar={firmalar}
+                            kategoriler={kategoriler}
+                        />
+
+                        {viewMode === 'kanban' ? (
+                            <KanbanBoard
+                                processes={activeTab === 'myProcesses' ? myProcesses : 
+                                           processView === 'active' ? activeRows : completedRows}
+                                onEdit={handleOpenEditProcessModal}
+                                onStatusChange={handleStatusChange}
+                            />
+                        ) : (
+                            <ProcessTable
+                                tableRows={activeTab === 'myProcesses' ? myProcesses : 
+                                           processView === 'active' ? activeRows : completedRows}
+                                onEdit={handleOpenEditProcessModal}
+                                onRowClick={handleProcessTableRowClick}
+                                sortConfig={sortConfig}
+                                handleSort={requestSort}
+                                userRole={user?.role}
+                                visibleColumns={tableColumns}
+                            />
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'admin' && isAdmin && (
+                    <AdminPanel
+                        users={users}
+                        firmalar={firmalar}
+                        kategoriler={kategoriler}
+                        processes={processes}
+                        logs={logs}
+                        openUserModal={handleOpenEditUserModal}
+                        openNewUserModal={handleOpenNewUserModal}
+                        requestUserDelete={handleUserDelete}
+                        currentTableColumns={tableColumns}
+                        onTableColumnsUpdate={handleTableColumnsUpdate}
+                        onCategoryUpdate={handleCategoryUpdate}
+                        onDatabaseBackup={handleDatabaseBackup}
+                        onCleanTempFiles={handleCleanTempFiles}
+                        onGenerateSystemReport={handleGenerateSystemReport}
+                        onClearAllLogs={handleClearAllLogs}
+                        onFactoryReset={handleFactoryReset}
+                        onExportLogs={handleExportLogs}
+                        systemOperationLoading={systemOperationLoading}
+                    />
+                )}
+
+                {activeTab === 'profile' && (
+                    <Profile 
+                        onDownloadData={handleDownloadUserData}
+                        onDeleteAccount={handleDeleteAccount}
+                    />
+                )}
+
+                {activeTab === 'settings' && <Settings />}
+            </div>
+
+            <ProcessModal
+                isOpen={isProcessModalOpen}
+                onClose={() => setIsProcessModalOpen(false)}
+                onSubmit={handleProcessSubmit}
+                onDelete={handleDeleteProcess}
+                isEditMode={isProcessEditMode}
+                initialData={currentProcessData}
+                focusField={processModalFocusField}
+            />
+
+            <UserModal
+                isOpen={isUserModalOpen}
+                onClose={() => setIsUserModalOpen(false)}
+                onSubmit={handleUserSubmit}
+                isEditMode={isUserEditMode}
+                initialData={currentUserData}
+            />
 
             {isChatOpen && (
-                <ChatPanel 
-                    user={user} 
-                    allUsers={users} 
-                    onUserSelect={() => {}} 
-                    onClose={() => setChatOpen(false)} 
+                <ChatPanel
+                    user={user}
+                    allUsers={users}
+                    onClose={() => setChatOpen(false)}
                 />
             )}
 
-            <button 
-                onClick={() => setChatOpen(o => !o)} 
+            <button
+                onClick={() => setChatOpen(!isChatOpen)}
                 data-chat-trigger="true"
-                title="Mesajlaşma" 
-                className={`fixed bottom-6 right-6 bg-blue-600 text-white w-20 h-20 rounded-full shadow-2xl flex items-center justify-center hover:bg-blue-700 z-50 transition-all duration-300 transform hover:scale-110 ${
-                    Object.values(unreadCounts).some(count => count > 0) 
-                        ? 'animate-pulse ring-4 ring-blue-300' 
-                        : ''
-                }`}
+                className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-30"
             >
-                <div className="relative">
-                    <span className="text-3xl">💬</span>
-                    {Object.values(unreadCounts).reduce((total, count) => total + count, 0) > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-bounce">
-                            {Object.values(unreadCounts).reduce((total, count) => total + count, 0) > 9 
-                                ? '9+' 
-                                : Object.values(unreadCounts).reduce((total, count) => total + count, 0)
-                            }
-                        </span>
-                    )}
-                </div>
+                <span className="text-2xl">💬</span>
+                {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-pulse">
+                        {Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
+                    </span>
+                )}
             </button>
-
-            <LoadingOverlay isVisible={isExporting || systemOperationLoading} text={systemOperationLoading ? "Sistem işlemi yürütülüyor..." : "Dışa aktarılıyor..."} />
         </div>
     );
 };

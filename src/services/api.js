@@ -85,11 +85,11 @@ export const clearAllLogs = () => apiClient.post('/backup/clear-logs');
 export const factoryReset = () => apiClient.post('/backup/factory-reset');
 
 // Backup related functions
-export const getBackups = () => axios.get('/api/backup');
+export const getBackups = () => apiClient.get('/backup');
 
 
 export const importBackup = (formData) => {
-  return axios.post('/api/backup/import', formData, {
+  return apiClient.post('/backup/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };
@@ -113,3 +113,9 @@ export const addCategory = (data) => axios.post('/api/categories', data);
 // Company API (eğer yoksa ekleyin)
 export const getCompanies = () => axios.get('/api/companies');
 export const addCompany = (data) => axios.post('/api/companies', data);
+
+// --- Mesajlaşma (Messages) Fonksiyonları ---
+export const getMessages = (userId) => apiClient.get(`/messages/${userId}`);
+export const sendMessage = (messageData) => apiClient.post('/messages', messageData);
+export const markMessageAsRead = (messageId) => apiClient.put(`/messages/${messageId}/read`);
+export const getConversation = (userId1, userId2) => apiClient.get(`/messages/conversation/${userId1}/${userId2}`);

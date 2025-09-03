@@ -198,8 +198,8 @@ export const DataProvider = ({ children }) => {
     addUser,
     editUser,
     removeUser,
-    markMessagesAsRead,  // Virgül eklendi
-    setData
+    markMessagesAsRead,
+    setData  // BU SATIR EKLENDI
 };
     return (
         <DataContext.Provider value={value}>
